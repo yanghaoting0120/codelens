@@ -6439,7 +6439,36 @@ int main() {
     applyPrefs();
     applyLang("python");
     refreshAiButton();
-    loadSample();
+    if (!applyUrlAndPending()) loadSample();
+  }
+
+  /** 接收蛙课堂联动：URL ?lang= 预选语言 + localStorage 传入的代码 */
+  function applyUrlAndPending() {
+    try {
+      // URL 语言参数：?lang=python|php|html|css|c|cpp
+      const m = location.search.match(/[?&]lang=([a-z]+)/i);
+      if (m && LANG_FILE[m[1].toLowerCase()]) {
+        const lang = m[1].toLowerCase();
+        applyLang(lang);
+        $("langSelect").value = lang;
+      }
+      // 课程联动：localStorage 里带过来的代码（同域共享，10 分钟内有效）
+      const raw = localStorage.getItem("codelens_pending");
+      if (raw) {
+        localStorage.removeItem("codelens_pending");
+        const p = JSON.parse(raw);
+        if (p && p.code && Date.now() - (p.ts || 0) < 10 * 60 * 1000) {
+          if (p.lang && LANG_FILE[p.lang]) {
+            applyLang(p.lang);
+            $("langSelect").value = p.lang;
+          }
+          setCode(p.code);
+          toast("已从蛙课堂带入代码，释义与运行结果如下", "ok");
+          return true;
+        }
+      }
+    } catch (e) { /* 忽略异常 */ }
+    return false;
   }
 
   document.addEventListener("DOMContentLoaded", init);
