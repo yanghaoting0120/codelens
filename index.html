@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>译码 CodeLens · 把代码翻译成人话</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ===== 玻璃拟态背景：渐变底 + 彩色光斑 + 噪点 ===== -->
+<div class="bg" aria-hidden="true">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+  <div class="blob blob-4"></div>
+  <div class="noise"></div>
+</div>
+
+<!-- ===== 顶部栏 ===== -->
+<header class="topbar glass">
+  <div class="brand">
+    <div class="logo" aria-hidden="true">
+      <svg viewBox="0 0 48 48" width="34" height="34">
+        <defs>
+          <linearGradient id="lg1" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="var(--accent)"/>
+            <stop offset="1" stop-color="var(--accent-2)"/>
+          </linearGradient>
+        </defs>
+        <rect x="2" y="2" width="44" height="44" rx="13" fill="url(#lg1)" opacity="0.22"/>
+        <!-- 放大镜：看清代码 -->
+        <circle cx="21" cy="21" r="9.5" stroke="url(#lg1)" stroke-width="3" fill="rgba(110,231,255,0.08)"/>
+        <line x1="28" y1="28" x2="36" y2="36" stroke="url(#lg1)" stroke-width="3" stroke-linecap="round"/>
+        <path d="M16.5 21.5h9" stroke="url(#lg1)" stroke-width="2.2" stroke-linecap="round"/>
+        <path d="M16.5 26.5h5" stroke="url(#lg1)" stroke-width="2.2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="brand-text">
+      <h1>译码 <span>CodeLens</span></h1>
+      <p>把代码翻译成人话 · 零基础也能看懂</p>
+    </div>
+  </div>
+
+  <div class="top-actions">
+    <label class="lang-picker" title="选择编程语言">
+      <span class="lang-ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+          <circle cx="10.5" cy="10.5" r="6"/>
+          <line x1="15.2" y1="15.2" x2="20" y2="20"/>
+        </svg>
+      </span>
+      <select id="langSelect">
+        <option value="python">Python</option>
+        <option value="php">PHP</option>
+        <option value="html">HTML</option>
+        <option value="css">CSS</option>
+        <option value="c">C 语言</option>
+        <option value="cpp">C++</option>
+      </select>
+    </label>
+    <button id="btnSample" class="btn ghost" title="载入一段示例代码">示例代码</button>
+    <button id="btnExplain" class="btn primary" title="立即解释右侧代码">开始解释</button>
+    <button id="btnAI" class="btn ghost ai-toggle" title="AI 增强释义开关（需在设置中配置）">
+      <span class="ai-dot" aria-hidden="true"></span>AI 增强
+    </button>
+    <button id="btnSettings" class="btn icon-btn" title="设置（AI 接口配置等）">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3.2"/>
+        <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.56-1.11 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.01a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.01a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.56 1.03z"/>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<!-- ===== 主区域：左释义 4 : 右代码 6（可拖拽调整） ===== -->
+<main>
+  <aside id="explainPanel" class="panel glass">
+    <div class="panel-head">
+      <div class="panel-title">
+        <h2>释义面板</h2>
+        <span id="explainMeta" class="meta">等待代码…</span>
+      </div>
+      <button id="btnClearExplain" class="mini-btn" title="清空释义">清空</button>
+    </div>
+    <div id="explainBody" class="panel-body">
+      <div class="empty-state">
+        <div class="empty-ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="10.5" cy="10.5" r="6.2"/>
+            <line x1="15.2" y1="15.2" x2="20.5" y2="20.5"/>
+            <path d="M8 10.5h5"/>
+            <path d="M8 13.5h3"/>
+          </svg>
+        </div>
+        <h3>这里会“翻译”你的代码</h3>
+        <p>在右侧输入或粘贴任意代码，释义就会显示在这里：</p>
+        <ul>
+          <li><b>整体概览</b> —— 这段代码是干什么的</li>
+          <li><b>逐行讲解</b> —— 每一行在说什么</li>
+          <li><b>关键术语</b> —— 陌生词一看就懂</li>
+        </ul>
+        <button id="btnEmptySample" class="btn ghost">先看个示例 →</button>
+      </div>
+    </div>
+  </aside>
+
+  <div id="divider" class="divider" title="拖动调整左右比例"></div>
+
+  <section id="editorPanel" class="panel glass">
+    <div class="editor-head">
+      <span class="dot dot-red"></span>
+      <span class="dot dot-yellow"></span>
+      <span class="dot dot-green"></span>
+      <span class="file-name" id="fileName">main.py</span>
+      <span class="editor-tools">
+        <label class="auto-toggle" title="输入代码时自动解释">
+          <input type="checkbox" id="autoExplain" checked> 边写边解释
+        </label>
+        <button id="btnClearCode" class="mini-btn">清空</button>
+      </span>
+    </div>
+    <div id="editorWrap" class="editor-wrap">
+      <div id="gutterLayer" class="gutter-layer" aria-hidden="true"></div>
+      <div id="preLayer" class="pre-layer" aria-hidden="true"></div>
+      <textarea id="codeInput" class="code-input" wrap="off" spellcheck="false"
+        autocomplete="off" autocapitalize="off" autocorrect="off"
+        placeholder="在这里输入或粘贴代码，例如：print(&quot;你好，世界&quot;)"></textarea>
+    </div>
+
+    <!-- ===== 实时预览 / 运行结果 ===== -->
+    <div id="previewPanel" class="preview-panel">
+      <div class="preview-head">
+        <span id="previewToggle" class="preview-toggle" title="收起 / 展开预览">▾</span>
+        <span class="preview-title">实时预览 · 运行结果</span>
+        <span id="previewHint" class="preview-hint">Python 本地解释器运行</span>
+        <span class="preview-tools">
+          <label class="auto-toggle" title="代码变化时自动刷新预览/运行">
+            <input type="checkbox" id="autoRun" checked> 实时运行
+          </label>
+          <input id="previewInput" class="preview-input" placeholder="程序输入（运行前填好，每行一个）">
+          <button id="btnRun" class="btn primary run-btn">▶ 运行</button>
+        </span>
+      </div>
+      <div id="previewBody" class="preview-body">
+        <iframe id="previewFrame" class="preview-frame" sandbox="allow-scripts" title="代码预览"></iframe>
+        <div id="previewConsole" class="preview-console hidden"></div>
+      </div>
+    </div>
+
+    <div class="editor-foot">
+      <span id="footLang">Python</span>
+      <span id="footStat">0 行 · 0 字符</span>
+      <span id="footMode" class="mode-badge">内置引擎</span>
+    </div>
+  </section>
+</main>
+
+<!-- ===== 设置弹窗 ===== -->
+<div id="settingsModal" class="modal-mask hidden">
+  <div class="modal glass-strong">
+    <div class="modal-head">
+      <h3>⚙ 设置</h3>
+      <button id="btnCloseSettings" class="mini-btn">✕</button>
+    </div>
+
+    <!-- 外观 -->
+    <section class="modal-sec">
+      <div class="sec-title"><h4>外观 · 主题色</h4><span class="sec-hint">界面主色调（立即生效）</span></div>
+      <div class="swatches" id="swatches">
+        <button class="swatch" data-accent="cyan"    style="--c1:#6ee7ff;--c2:#8b7bff" title="冰蓝（默认）"></button>
+        <button class="swatch" data-accent="violet"  style="--c1:#a78bfa;--c2:#f472b6" title="紫罗兰"></button>
+        <button class="swatch" data-accent="emerald" style="--c1:#34d399;--c2:#22d3ee" title="翡翠绿"></button>
+        <button class="swatch" data-accent="blue"    style="--c1:#60a5fa;--c2:#818cf8" title="天蓝"></button>
+        <button class="swatch" data-accent="orange"  style="--c1:#fbbf24;--c2:#fb7185" title="落日橙"></button>
+        <button class="swatch" data-accent="pink"    style="--c1:#f472b6;--c2:#a78bfa" title="樱花粉"></button>
+        <button class="swatch" data-accent="gold"    style="--c1:#fde68a;--c2:#f59e0b" title="星光金"></button>
+        <button class="swatch" data-accent="teal"    style="--c1:#2dd4bf;--c2:#60a5fa" title="极光青"></button>
+      </div>
+
+      <div class="sec-title" style="margin-top:16px"><h4>外观 · 背景风格</h4></div>
+      <div class="bg-options" id="bgOptions">
+        <button class="bg-opt" data-bg="night" title="深蓝夜航（默认）">
+          <span class="bg-preview" style="background:linear-gradient(160deg,#0a0f24,#101735 48%,#0b1f33)"></span>深蓝夜航
+        </button>
+        <button class="bg-opt" data-bg="nebula" title="暗紫星云">
+          <span class="bg-preview" style="background:linear-gradient(160deg,#150a26,#1d0f38 48%,#12081f)"></span>暗紫星云
+        </button>
+        <button class="bg-opt" data-bg="forest" title="墨绿森林">
+          <span class="bg-preview" style="background:linear-gradient(160deg,#071710,#0d2419 48%,#091c13)"></span>墨绿森林
+        </button>
+        <button class="bg-opt" data-bg="obsidian" title="曜石黑">
+          <span class="bg-preview" style="background:linear-gradient(160deg,#05070d,#0a0e18 48%,#070a12)"></span>曜石黑
+        </button>
+      </div>
+
+      <div class="sec-title" style="margin-top:16px"><h4>外观 · 代码字号</h4></div>
+      <div class="seg" id="codeSizeSeg">
+        <button data-size="s" title="小号代码">小</button>
+        <button data-size="m" title="标准（默认）" class="on">中</button>
+        <button data-size="l" title="大号代码">大</button>
+      </div>
+
+      <div class="sec-title" style="margin-top:16px"><h4>外观 · 界面字号</h4><span class="sec-hint">释义面板等文字</span></div>
+      <div class="seg" id="uiSizeSeg">
+        <button data-size="s" title="紧凑的界面文字">小</button>
+        <button data-size="m" title="标准（默认）" class="on">中</button>
+        <button data-size="l" title="宽松的界面文字">大</button>
+      </div>
+    </section>
+
+    <!-- 行为偏好 -->
+    <section class="modal-sec">
+      <div class="sec-title"><h4>行为偏好</h4></div>
+      <label class="pref-row">
+        <span>边写边解释<small>输入代码时自动生成释义</small></span>
+        <span class="switch"><input type="checkbox" id="prefAutoExplain" checked><span class="slider" aria-hidden="true"></span></span>
+      </label>
+      <label class="pref-row">
+        <span>实时运行<small>代码变化时自动刷新预览/运行结果</small></span>
+        <span class="switch"><input type="checkbox" id="prefAutoRun" checked><span class="slider" aria-hidden="true"></span></span>
+      </label>
+    </section>
+
+    <!-- AI -->
+    <section class="modal-sec">
+      <div class="sec-title">
+        <h4>AI 增强释义</h4>
+        <label class="switch">
+          <input type="checkbox" id="aiEnabled">
+          <span class="slider" aria-hidden="true"></span>
+        </label>
+      </div>
+      <p class="hint">开启后，释义会由 AI 大模型生成，讲解更口语化、更懂上下文；未配置或请求失败时自动回退到内置引擎。</p>
+      <div class="field">
+        <label for="aiBaseUrl">接口地址（Base URL）</label>
+        <input type="text" id="aiBaseUrl" placeholder="https://api.deepseek.com" spellcheck="false">
+      </div>
+      <div class="field">
+        <label for="aiKey">API Key</label>
+        <input type="password" id="aiKey" placeholder="sk-…" spellcheck="false">
+      </div>
+      <div class="field">
+        <label for="aiModel">模型名称</label>
+        <input type="text" id="aiModel" placeholder="deepseek-chat" spellcheck="false">
+      </div>
+      <p class="hint">支持任意 OpenAI 兼容接口（DeepSeek / Kimi / 通义 / 智谱 / 本地 Ollama 等）。Key 只保存在你本机浏览器里，不会上传到任何服务器。</p>
+    </section>
+
+    <div class="modal-actions">
+      <button id="btnResetPrefs" class="btn ghost">恢复默认外观</button>
+      <button id="btnTestAI" class="btn ghost">测试连接</button>
+      <span class="spacer"></span>
+      <button id="btnSaveSettings" class="btn primary">保存</button>
+    </div>
+    <p class="modal-foot">译码 CodeLens v1.2 · 外观与偏好即时生效并自动保存 · 全部功能可离线使用</p>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="js/highlight.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/samples.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/interp-common.js"></script>
+<script src="js/interp-python.js"></script>
+<script src="js/interp-c.js"></script>
+<script src="js/interp-php.js"></script>
+<script src="js/preview.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
