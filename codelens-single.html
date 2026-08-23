@@ -12,23 +12,25 @@
 :root {
   --bg-0: #0a0f24;
   --bg-1: #101735;
-  --bg-2: #0b1f33;
-  --text: #e8ecf8;
-  --text-dim: #9aa4c4;
-  --text-faint: #66709a;
-  --glass-bg: rgba(255, 255, 255, 0.055);
-  --glass-bg-strong: rgba(20, 28, 58, 0.72);
-  --glass-border: rgba(255, 255, 255, 0.12);
-  --glass-border-soft: rgba(255, 255, 255, 0.08);
-  --accent: #6ee7ff;
-  --accent-2: #8b7bff;
+  --bg-0: #070b1a;
+  --bg-1: #0d1430;
+  --bg-2: #0a1a2e;
+  --text: #eaf0ff;
+  --text-dim: #a3adcc;
+  --text-faint: #6b76a3;
+  --glass-bg: rgba(255, 255, 255, 0.06);
+  --glass-bg-strong: rgba(18, 26, 54, 0.74);
+  --glass-border: rgba(255, 255, 255, 0.13);
+  --glass-border-soft: rgba(255, 255, 255, 0.09);
+  --accent: #7aa7ff;
+  --accent-2: #a78bfa;
   --accent-grad: linear-gradient(135deg, var(--accent), var(--accent-2));
-  --accent-rgb: 110, 231, 255;
-  --accent2-rgb: 139, 123, 255;
-  --blob-1: rgba(var(--accent-rgb),0.55);
-  --blob-2: rgba(var(--accent2-rgb),0.55);
-  --blob-3: rgba(52,211,153,0.38);
-  --blob-4: rgba(251,146,60,0.30);
+  --accent-rgb: 122, 167, 255;
+  --accent2-rgb: 167, 139, 250;
+  --blob-1: rgba(var(--accent-rgb),0.50);
+  --blob-2: rgba(var(--accent2-rgb),0.46);
+  --blob-3: rgba(56,189,248,0.26);
+  --blob-4: rgba(244,114,182,0.20);
   --code-size: 13.5px;
   --ui-size: 13px;
   --code-lh: 24px;
@@ -985,8 +987,8 @@ body.resizing iframe, body.resizing .code-input { pointer-events: none; }
     <section class="modal-sec">
       <div class="sec-title"><h4>外观 · 主题色</h4><span class="sec-hint">界面主色调（立即生效）</span></div>
       <div class="swatches" id="swatches">
-        <button class="swatch" data-accent="cyan"    style="--c1:#6ee7ff;--c2:#8b7bff" title="冰蓝（默认）"></button>
-        <button class="swatch" data-accent="violet"  style="--c1:#a78bfa;--c2:#f472b6" title="紫罗兰"></button>
+        <button class="swatch" data-accent="cyan"    style="--c1:#7aa7ff;--c2:#a78bfa" title="柔光蓝紫（默认）"></button>
+        <button class="swatch" data-accent="violet"  style="--c1:#a78bfa;--c2:#e879f9" title="紫罗兰"></button>
         <button class="swatch" data-accent="emerald" style="--c1:#34d399;--c2:#22d3ee" title="翡翠绿"></button>
         <button class="swatch" data-accent="blue"    style="--c1:#60a5fa;--c2:#818cf8" title="天蓝"></button>
         <button class="swatch" data-accent="orange"  style="--c1:#fbbf24;--c2:#fb7185" title="落日橙"></button>
@@ -6104,31 +6106,31 @@ int main() {
   };
 
   const THEMES = {
-    cyan:    { a: "#6ee7ff", a2: "#8b7bff", rgb: "110,231,255", rgb2: "139,123,255" },
-    violet:  { a: "#a78bfa", a2: "#f472b6", rgb: "167,139,250", rgb2: "244,114,182" },
-    emerald: { a: "#34d399", a2: "#22d3ee", rgb: "52,211,153",  rgb2: "34,211,238" },
-    blue:    { a: "#60a5fa", a2: "#818cf8", rgb: "96,165,250",  rgb2: "129,140,248" },
-    orange:  { a: "#fbbf24", a2: "#fb7185", rgb: "251,191,36",  rgb2: "251,113,133" },
-    pink:    { a: "#f472b6", a2: "#a78bfa", rgb: "244,114,182", rgb2: "167,139,250" },
-    gold:    { a: "#fde68a", a2: "#f59e0b", rgb: "253,230,138", rgb2: "245,158,11" },
-    teal:    { a: "#2dd4bf", a2: "#60a5fa", rgb: "45,212,191",  rgb2: "96,165,250" },
+    cyan:    { a: "#7aa7ff", a2: "#a78bfa", rgb: "122,167,255", rgb2: "167,139,250" },   // 柔光蓝紫（默认）
+    violet:  { a: "#a78bfa", a2: "#e879f9", rgb: "167,139,250", rgb2: "232,121,249" },   // 紫罗兰
+    emerald: { a: "#34d399", a2: "#22d3ee", rgb: "52,211,153",  rgb2: "34,211,238" },    // 翡翠绿
+    blue:    { a: "#60a5fa", a2: "#818cf8", rgb: "96,165,250",  rgb2: "129,140,248" },   // 天蓝
+    orange:  { a: "#fbbf24", a2: "#fb7185", rgb: "251,191,36",  rgb2: "251,113,133" },   // 落日橙
+    pink:    { a: "#f472b6", a2: "#a78bfa", rgb: "244,114,182", rgb2: "167,139,250" },   // 樱花粉
+    gold:    { a: "#fde68a", a2: "#f59e0b", rgb: "253,230,138", rgb2: "245,158,11" },    // 星光金
+    teal:    { a: "#2dd4bf", a2: "#60a5fa", rgb: "45,212,191",  rgb2: "96,165,250" },    // 极光青
   };
 
   const BACKGROUNDS = {
     night: {
-      bg0: "#0a0f24", bg1: "#101735", bg2: "#0b1f33",
-      blob1: "rgba(110,231,255,0.55)", blob2: "rgba(139,123,255,0.55)",
-      blob3: "rgba(52,211,153,0.38)", blob4: "rgba(251,146,60,0.30)",
+      bg0: "#070b1a", bg1: "#0d1430", bg2: "#0a1a2e",
+      blob1: "rgba(90,140,255,0.50)", blob2: "rgba(150,110,255,0.45)",
+      blob3: "rgba(56,189,248,0.26)", blob4: "rgba(244,114,182,0.20)",
     },
     nebula: {
-      bg0: "#150a26", bg1: "#1d0f38", bg2: "#12081f",
-      blob1: "rgba(167,139,250,0.50)", blob2: "rgba(244,114,182,0.40)",
-      blob3: "rgba(96,165,250,0.35)", blob4: "rgba(167,139,250,0.25)",
+      bg0: "#140a26", bg1: "#1c0f38", bg2: "#12081f",
+      blob1: "rgba(167,139,250,0.50)", blob2: "rgba(232,121,249,0.36)",
+      blob3: "rgba(96,165,250,0.32)", blob4: "rgba(167,139,250,0.24)",
     },
     forest: {
       bg0: "#071710", bg1: "#0d2419", bg2: "#091c13",
-      blob1: "rgba(52,211,153,0.45)", blob2: "rgba(34,211,238,0.35)",
-      blob3: "rgba(163,230,53,0.30)", blob4: "rgba(52,211,153,0.22)",
+      blob1: "rgba(52,211,153,0.42)", blob2: "rgba(34,211,238,0.32)",
+      blob3: "rgba(163,230,53,0.26)", blob4: "rgba(52,211,153,0.20)",
     },
     obsidian: {
       bg0: "#05070d", bg1: "#0a0e18", bg2: "#070a12",
