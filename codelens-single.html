@@ -876,6 +876,7 @@ body.resizing iframe, body.resizing .code-input { pointer-events: none; }
         <option value="css">CSS</option>
         <option value="c">C 语言</option>
         <option value="cpp">C++</option>
+        <option value="javascript">JavaScript</option>
       </select>
     </label>
     <button id="btnSample" class="btn ghost" title="载入一段示例代码">示例代码</button>
@@ -1123,6 +1124,15 @@ body.resizing iframe, body.resizing .code-input { pointer-events: none; }
       keywords: new Set(("auto break case char const continue default do double else enum extern float for goto if inline int long register restrict return short signed sizeof static struct switch typedef union unsigned void volatile while class public private protected namespace using template typename new delete this virtual override friend operator bool string vector try catch throw constexpr auto").split(" ")),
       types: new Set(["int", "char", "float", "double", "void", "long", "short", "unsigned", "signed", "bool", "string", "auto"]),
       builtins: new Set(("cout cin endl std printf scanf puts gets malloc free sizeof strlen strcpy strcmp strcat vector string main NULL true false cerr clog").split(" ")),
+    },
+    javascript: {
+      lineComments: ["//"],
+      blockComment: ["/*", "*/"],
+      strings: ['"', "'", "`"],
+      sigil: null,
+      keywords: new Set(("break case catch class const continue debugger default delete do else export extends finally for function if import in instanceof let new return super switch this throw try typeof var void while with yield async await of").split(" ")),
+      types: new Set(["Number", "String", "Boolean", "Array", "Object", "Function", "Promise", "Date", "RegExp", "Map", "Set", "null", "undefined", "NaN", "Infinity"]),
+      builtins: new Set(("console Math JSON document window alert prompt parseFloat parseInt isNaN isFinite Number String Boolean Array Object Date RegExp log info warn error").split(" ")),
     },
   };
 
@@ -1436,6 +1446,7 @@ body.resizing iframe, body.resizing .code-input { pointer-events: none; }
 
   const LANG_NAMES = {
     python: "Python", php: "PHP", html: "HTML", css: "CSS", c: "C 语言", cpp: "C++",
+    javascript: "JavaScript",
   };
 
   const KIND_LABEL = {
@@ -1447,7 +1458,7 @@ body.resizing iframe, body.resizing .code-input { pointer-events: none; }
 
   /* ---------- 内置术语词典 ---------- */
   const TERM_DICT = [
-    { keys: ["variable", "var", "$_", "int a"], name: "变量", meaning: "给数据起的“名字”。比如 age = 18，就是把数字 18 存进一个叫 age 的小盒子里，以后叫 age 就能拿到 18。" },
+    { keys: ["variable", "var", "$_", "int a", "let", "const"], name: "变量", meaning: "给数据起的“名字”。比如 age = 18，就是把数字 18 存进一个叫 age 的小盒子里，以后叫 age 就能拿到 18。" },
     { keys: ["function", "def", "func"], name: "函数", meaning: "把一段常用代码打包起来的“工具箱”。给它起个名字，想用时叫一声（调用）就能执行，不用重复写。" },
     { keys: ["loop", "for", "while", "foreach"], name: "循环", meaning: "让同一段代码反复执行的“复读机”。for/while 就是两种常见的循环，例如把列表里的每一项都处理一遍。" },
     { keys: ["if", "else", "elif", "condition", "switch", "case"], name: "条件判断", meaning: "让程序“看情况办事”的岔路口。如果条件成立走这条路，否则走另一条路，就像红绿灯决定走不走。" },
@@ -1460,7 +1471,7 @@ body.resizing iframe, body.resizing .code-input { pointer-events: none; }
     { keys: ["parameter", "param", "arg"], name: "参数", meaning: "调用函数时传给它的“原料”。函数根据原料算出结果，比如 计算面积(5, 3) 里的 5 和 3。" },
     { keys: ["return"], name: "返回值", meaning: "函数干完活后交出来的“成品”。比如 加(1,2) 返回 3，这个 3 就是返回值，可以继续被别处使用。" },
     { keys: ["import", "include", "require", "use"], name: "导入 / 引入", meaning: "把别人写好的现成代码（库/头文件）搬进来用，相当于“借工具”，不用自己从头造轮子。" },
-    { keys: ["print", "echo", "cout", "printf"], name: "输出", meaning: "把结果显示出来。print / echo / cout / printf 都是“把话说给你看”的命令，通常显示在屏幕或网页上。" },
+    { keys: ["print", "echo", "cout", "printf", "console.log"], name: "输出", meaning: "把结果显示出来。print / echo / cout / printf / console.log 都是“把话说给你看”的命令，通常显示在屏幕或控制台上。" },
     { keys: ["input", "scanf", "cin", "readline"], name: "输入", meaning: "从用户那里读取数据。程序停下来等你打字或点击，把你的输入存进变量再用。" },
     { keys: ["=", "assignment"], name: "赋值", meaning: "把右边的值装进左边的变量里，用 = 表示。注意它是“装进去”，不是数学里的“等于”。" },
     { keys: ["keyword"], name: "关键字", meaning: "编程语言里自带含义的“保留词”，比如 if、for、return。它们不能拿来当名字用，是语言的规定动作。" },
@@ -1627,6 +1638,11 @@ body.resizing iframe, body.resizing .code-input { pointer-events: none; }
       file: "main.cpp",
       intro: "C++ 在 C 的基础上增加了类、对象等特性，是游戏、软件开发的常用语言。",
     },
+    javascript: {
+      name: "JavaScript",
+      file: "main.js",
+      intro: "JavaScript 是浏览器的“行为”语言，能让网页响应点击、处理数据、做计算，也常用来写小工具。",
+    },
   };
 
   /* ---------- 行分类器 ---------- */
@@ -1743,6 +1759,34 @@ body.resizing iframe, body.resizing .code-input { pointer-events: none; }
       return { kind: "other", text: t };
     }
 
+    if (lang === "javascript") {
+      if (starts(/^\/\//) || starts(/^\/\*/)) return { kind: "comment", text: t };
+      let m = /^(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/.exec(t);
+      if (m) return { kind: "func", name: m[1] };
+      m = /^(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*[^=]*(?:=>)/.exec(t);
+      if (m) return { kind: "func", name: m[1], arrow: true };
+      m = /^class\s+([A-Za-z_$][\w$]*)/.exec(t);
+      if (m) return { kind: "class", name: m[1] };
+      if (starts(/^import\b/)) return { kind: "import", text: t };
+      if (starts(/^for\b|^while\b|^do\b/)) return { kind: "loop", text: t };
+      if (starts(/^if\b/)) return { kind: "cond", text: t };
+      if (starts(/^else\b/)) return { kind: "cond", text: t };
+      if (starts(/^switch\b/)) return { kind: "cond", text: t };
+      if (starts(/^case\b/)) return { kind: "cond", text: t };
+      if (starts(/^default\b/)) return { kind: "cond", text: t };
+      if (starts(/^return\b/)) return { kind: "return", text: t };
+      if (starts(/^console\.(log|info|warn|error|debug)\s*\(/) || starts(/^alert\s*\(/)) return { kind: "output", text: t };
+      m = /^(?:const|let|var)\s+([A-Za-z_$][\w$]*)/.exec(t);
+      if (m) return { kind: "var", name: m[1], declare: true };
+      m = /^([A-Za-z_$][\w$]*)\s*([+\-*/%]?=)/.exec(t);
+      if (m) return { kind: "var", name: m[1], op: m[2] };
+      m = /^([A-Za-z_$][\w$]*)\s*\(/.exec(t);
+      if (m) return { kind: "call", name: m[1] };
+      if (starts(/^}/)) return { kind: "block", text: t, close: true };
+      if (starts(/^{/)) return { kind: "block", text: t };
+      return { kind: "other", text: t };
+    }
+
     return { kind: "other", text: t };
   }
 
@@ -1772,12 +1816,14 @@ body.resizing iframe, body.resizing .code-input { pointer-events: none; }
         if (lang === "php") return "输出语句：echo 会把后面的内容直接打印到网页上，用户能在浏览器里看到。";
         if (lang === "c") return "输出语句：printf 按指定格式把文字/数值打印到控制台窗口。";
         if (lang === "cpp") return "输出语句：cout 配合 << 把内容输出到控制台窗口；endl 表示换行。";
+        if (lang === "javascript") return "输出语句：console.log 把内容打印到控制台，是 JavaScript 最常用的“看结果”的方式；alert 则会弹出提示框。";
         return "输出语句：把括号里的内容打印到屏幕上，是程序“说话”的方式。";
       case "input":
         if (lang === "c") return "输入语句：scanf 等待用户从键盘输入，并按格式存进变量（& 表示“放进这个变量的地址”）。";
         if (lang === "cpp") return "输入语句：cin 配合 >> 等待用户从键盘输入，并存入后面的变量。";
         return "输入语句：程序停下来，等用户输入文字，并把输入的内容作为结果返回（常配合变量一起用）。";
       case "var":
+        if (info.declare && lang === "javascript") return "声明变量：创建了一个名为 " + info.name + " 的变量。let 声明的变量之后可以重新赋值；const 声明的常量一旦赋值就不能再改（改了会报错）。";
         if (info.declare) return "声明变量：创建了一个名为 " + info.name + " 的变量，并声明它存储" + (lang === "cpp" ? "对应的" : "对应的") + "类型数据。以后就用这个名字代表这个数据。";
         return "赋值：把右边的值装进变量 " + info.name + " 里（= 表示“存入”，不是数学上的“等于”）。之后使用 " + info.name + " 就等于使用这个值。";
       case "loop":
@@ -1857,6 +1903,13 @@ body.resizing iframe, body.resizing .code-input { pointer-events: none; }
       push(dict("property"));
       if (/flex/.test(code)) push(dict("flex"));
       if (/margin/.test(code)) push(dict("margin"));
+    }
+    if (lang === "javascript") {
+      if (/console\.log|alert/.test(code)) push(dict("print"));
+      if (/\b(function|=>)/.test(code)) push(dict("function"));
+      if (/\[/.test(code)) push(dict("array"));
+      if (/\{\s*["']?[A-Za-z_$][\w$]*["']?\s*:/.test(code)) push(dict("dictionary"));
+      if (/\blet\b|\bconst\b/.test(code)) push(dict("variable"));
     }
     // 由代码文本推断
     if (/["']/.test(code)) push(dict("string"));
@@ -1939,6 +1992,20 @@ body.resizing iframe, body.resizing .code-input { pointer-events: none; }
     } else if (lang === "php") {
       title = "一个 PHP 网页后端脚本";
       summary = "这是一段 PHP 代码，运行在服务器上。它可以处理表单数据、读取数据库，并把结果以 HTML 形式输出给浏览器。";
+    } else if (lang === "javascript") {
+      if (has("classes")) {
+        title = "一段用类组织的 JavaScript 代码";
+        summary = "这段代码用 class 把数据和操作打包成“蓝图”，再创建实例使用，是面向对象的写法。";
+      } else if (has("funcs") && has("loops")) {
+        title = "一个典型的数据处理脚本";
+        summary = "它把任务拆成函数，再用循环批量处理数据（如遍历数组计算），是 JavaScript 最常见的小程序结构。";
+      } else if (has("outputs") && !has("funcs") && !has("loops")) {
+        title = "一个入门输出脚本";
+        summary = "这段代码主要用 console.log 把文字或计算结果打印到控制台，是最基础的 JavaScript 入门写法。";
+      } else {
+        title = "一个 JavaScript 程序片段";
+        summary = "这段代码包含若干基础语句" + (feat.length ? "（" + feat.join("、") + "）" : "") + "，是一个小规模的脚本。";
+      }
     } else {
       title = "一段代码";
       summary = "这是一段" + cfg.name + "代码，共 " + stats.lines + " 行。" + (feat.length ? "它" + feat.join("、") + "。" : "");
@@ -2120,6 +2187,30 @@ int main() {
     vector<int> scores = {85, 92, 78};
     cout << "总分是：" << sum(scores) << endl;
     return 0;
+}`,
+
+  javascript: `// 一个简单的 JavaScript 示例：统计班级成绩
+// 把成绩放进数组里
+const scores = [85, 92, 78, 90, 88];
+
+// 定义函数：计算平均分
+function average(nums) {
+    let total = 0;
+    for (const score of nums) {
+        total = total + score;   // 累加每一科成绩
+    }
+    return total / nums.length;  // 除以科目数得到平均分
+}
+
+// 调用函数，用 console.log 输出结果
+const avg = average(scores);
+console.log("班级平均分是：" + avg);
+
+// 再加一个判断：分数是否及格
+if (avg >= 60) {
+    console.log("平均分及格了，真棒！");
+} else {
+    console.log("平均分没及格，继续加油。");
 }`,
 };
 
@@ -5568,6 +5659,145 @@ int main() {
 </script>
 <script>
 /* ============================================================
+   译码 CodeLens · JavaScript 运行器（本地真实执行）
+   通过隐藏 iframe（sandbox 隔离）执行用户代码：
+   - 捕获 console.log / info / warn / error 输出
+   - 捕获运行时错误并翻译成通俗中文（尽量带行号）
+   - 结果经 postMessage 异步回传，由 preview.js 打印
+   - 死循环保护：父页面超时后可调用 stop() 销毁 iframe 停止
+   ============================================================ */
+(function () {
+  "use strict";
+
+  let frame = null;
+  let seq = 0;
+  let handler = null; // { id, onLog, onWarn, onErr, onDone }
+
+  function ensureFrame() {
+    if (frame && frame.isConnected) return frame;
+    frame = document.createElement("iframe");
+    frame.style.display = "none";
+    frame.setAttribute("aria-hidden", "true");
+    frame.setAttribute("sandbox", "allow-scripts");
+    document.body.appendChild(frame);
+    return frame;
+  }
+
+  function stop() {
+    if (frame && frame.isConnected) frame.remove();
+    frame = null;
+  }
+
+  /* ---------- 子页面引导代码（注入 srcdoc 执行） ---------- */
+  function boot(code, id) {
+    function post(type, text) {
+      try { parent.postMessage({ __cl: id, type: type, text: text }, "*"); } catch (e) {}
+    }
+    function stringify(x) {
+      if (typeof x === "string") return x;
+      if (typeof x === "undefined") return "undefined";
+      if (x === null) return "null";
+      if (typeof x === "function") return String(x).slice(0, 80);
+      try {
+        const s = JSON.stringify(x);
+        return s === undefined ? String(x) : s;
+      } catch (e) { return String(x); }
+    }
+    function make(type) {
+      return function () {
+        const parts = [];
+        for (let i = 0; i < arguments.length; i++) parts.push(stringify(arguments[i]));
+        post(type, parts.join(" "));
+      };
+    }
+    try { console.log = make("log"); } catch (e) {}
+    try { console.info = make("log"); } catch (e) {}
+    try { console.warn = make("warn"); } catch (e) {}
+    try { console.error = make("err"); } catch (e) {}
+    try { console.debug = make("log"); } catch (e) {}
+    // 从堆栈中找“属于用户代码”的行号（栈里的注入文档行号会偏大，忽略）
+    const codeLines = String(code).split("\n").length;
+    function locateLine(stack) {
+      const re = /:(\d+):\d+/g;
+      let m, best = null;
+      while ((m = re.exec(stack)) !== null) {
+        const ln = parseInt(m[1], 10);
+        if (ln >= 1 && ln <= codeLines) {
+          if (best === null || ln > best) best = ln;
+        }
+      }
+      return best;
+    }
+    window.onerror = function (msg, src, line, col, errObj) {
+      const st = errObj && errObj.stack ? String(errObj.stack) : "";
+      const ln = locateLine(st);
+      post("err", (ln ? "第 " + ln + " 行：" : "") + String(msg));
+    };
+    const t0 = Date.now();
+    try {
+      (0, eval)(code);
+      post("done", Date.now() - t0);
+    } catch (e) {
+      const sm = e && e.stack ? String(e.stack) : "";
+      const ln = locateLine(sm);
+      const line = ln ? "第 " + ln + " 行：" : "";
+      let text;
+      if (e instanceof TypeError) {
+        text = "类型不对：可能把文字当数字用了，或调用了不存在的方法。" + (e.message ? "（" + e.message + "）" : "");
+      } else if (e instanceof ReferenceError) {
+        text = "名字不认识：用到了未声明/未定义的变量或函数。" + (e.message ? "（" + e.message + "）" : "");
+      } else if (e instanceof SyntaxError) {
+        text = "语法错误：写法和 JavaScript 规则不符，请检查括号、引号、分号是否成对。" + (e.message ? "（" + e.message + "）" : "");
+      } else if (e instanceof RangeError) {
+        text = "数字越界：" + (e.message || "");
+      } else {
+        text = "运行出错：" + (e && e.message ? e.message : String(e));
+      }
+      post("err", line + text);
+      post("done", Date.now() - t0);
+    }
+  }
+
+  /* ---------- 执行入口 ---------- */
+  function run(code) {
+    const id = ++seq;
+    if (handler) handler.id = id;
+    const f = ensureFrame();
+    // 防 HTML 截断：把用户代码中的 "</" 转义为 "<\/"
+    const safeCode = JSON.stringify(code).replace(/<\//g, "<\\/");
+    const src =
+      "<!DOCTYPE html><html><head><meta charset=\"utf-8\"></head><body>" +
+      "<scr" + "ipt>(" + boot.toString() + ")(" + safeCode + "," + id + ");</" + "script>" +
+      "</body></html>";
+    f.srcdoc = src;
+    return id;
+  }
+
+  /* ---------- 父页面接收子页面消息 ---------- */
+  function onMessage(ev) {
+    const d = ev.data;
+    if (!d || !d.__cl || !handler || handler.id !== d.__cl) return;
+    if (d.type === "log") handler.onLog(d.text);
+    else if (d.type === "warn") handler.onWarn(d.text);
+    else if (d.type === "err") handler.onErr(d.text);
+    else if (d.type === "done") handler.onDone(parseInt(d.text, 10) || 0);
+  }
+
+  function attach() {
+    window.addEventListener("message", onMessage);
+  }
+
+  window.InterpJavaScript = {
+    attach: attach,
+    run: run,
+    stop: stop,
+    setHandler: function (h) { handler = h; },
+  };
+})();
+
+</script>
+<script>
+/* ============================================================
    译码 CodeLens · 实时预览 / 运行结果
    HTML、CSS → iframe 实时渲染成网页画面
    Python / PHP / C / C++ → 内置本地解释器真实运行，显示输出
@@ -5605,6 +5835,7 @@ int main() {
     php: "PHP 本地解释器运行",
     c: "C 本地解释器运行",
     cpp: "C++ 本地解释器运行",
+    javascript: "JavaScript 在浏览器中真实运行（console.log 输出）",
   };
 
   const MODE_INFO = {
@@ -5612,6 +5843,7 @@ int main() {
     php: "在右侧输入 PHP 代码，这里会显示 echo / print 输出的内容。",
     c: "在右侧输入 C 代码，这里会显示 printf 输出的内容。",
     cpp: "在右侧输入 C++ 代码，这里会显示 cout 输出的内容。",
+    javascript: "在右侧输入 JavaScript 代码，这里会显示 console.log 输出的内容。",
   };
 
   function esc(s) {
@@ -5627,6 +5859,9 @@ int main() {
       $("previewPanel").classList.toggle("collapsed");
       $("previewToggle").textContent = $("previewPanel").classList.contains("collapsed") ? "▸" : "▾";
     });
+    if (window.InterpJavaScript && window.InterpJavaScript.attach) {
+      window.InterpJavaScript.attach();
+    }
   }
 
   function isWeb() {
@@ -5637,9 +5872,11 @@ int main() {
     state.lang = lang;
     $("previewHint").textContent = HINTS[lang] || "";
     const web = isWeb();
+    const js = lang === "javascript";
     $("previewFrame").classList.toggle("hidden", !web);
     $("previewConsole").classList.toggle("hidden", web);
-    $("previewInput").classList.toggle("hidden", web);
+    // JavaScript 无“程序输入”概念，隐藏输入框，仅显示控制台输出
+    $("previewInput").classList.toggle("hidden", web || js);
     if (web) {
       if (state.code.trim()) renderFrame();
     } else {
@@ -5654,7 +5891,7 @@ int main() {
     const delay = isWeb() ? 350 : 650;
     state.timer = setTimeout(() => {
       if (isWeb()) renderFrame();
-      else if ($("autoRun").checked) runInterp(code, state.lang);
+      else if ($("autoRun").checked && state.lang !== "javascript") runInterp(code, state.lang);
     }, delay);
   }
 
@@ -5715,6 +5952,11 @@ int main() {
       showInfo("在右侧输入代码后，这里会显示运行结果。");
       return;
     }
+    // JavaScript：沙箱 iframe 真实执行，输出异步回传
+    if (lang === "javascript") {
+      runJavaScript(code);
+      return;
+    }
     const input = $("previewInput").value;
     const t0 = Date.now();
     let r = null;
@@ -5735,6 +5977,38 @@ int main() {
         $("previewInput").focus();
       }
     }
+  }
+
+  /* ---------- JavaScript 沙箱运行（异步） ---------- */
+  let jsWatchdog = null;
+
+  function runJavaScript(code) {
+    const interp = window.InterpJavaScript;
+    if (!interp) { showInfo("JavaScript 运行器未加载。"); return; }
+    consolePrint("▶ 运行中…", "info");
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(jsWatchdog);
+    };
+    interp.setHandler({
+      onLog: (t) => consolePrint(t, "out"),
+      onWarn: (t) => consolePrint(t, "warn"),
+      onErr: (t) => consolePrint("✗ " + t, "err"),
+      onDone: (ms) => {
+        finish();
+        consolePrint("✓ 运行完成（JavaScript 引擎 · " + ms + " ms）", "info");
+      },
+    });
+    const id = interp.run(code);
+    // 死循环保护：4 秒未返回则销毁 iframe 停止
+    jsWatchdog = setTimeout(() => {
+      if (done) return;
+      done = true;
+      interp.stop();
+      consolePrint("✗ 运行超过 4 秒已自动停止：可能是死循环（循环条件永远成立），请检查 while/for 的条件。", "err");
+    }, 4000);
   }
 
   window.Preview = { init, setLang, onCodeChange, runNow };
@@ -5772,7 +6046,7 @@ int main() {
 
   const LANG_FILE = {
     python: "main.py", php: "index.php", html: "index.html",
-    css: "style.css", c: "main.c", cpp: "main.cpp",
+    css: "style.css", c: "main.c", cpp: "main.cpp", javascript: "main.js",
   };
   const LANG_PLACEHOLDER = {
     python: "在这里输入 Python 代码，例如：print(&quot;你好，世界&quot;)",
@@ -5781,6 +6055,7 @@ int main() {
     css: "在这里输入 CSS 代码，例如：body { color: red; }",
     c: "在这里输入 C 代码，例如：printf(&quot;你好&quot;);",
     cpp: "在这里输入 C++ 代码，例如：cout &lt;&lt; &quot;你好&quot;;",
+    javascript: "在这里输入 JavaScript 代码，例如：console.log(&quot;你好&quot;);",
   };
 
   const EMPTY_HTML =

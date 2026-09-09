@@ -43,6 +43,15 @@
       types: new Set(["int", "char", "float", "double", "void", "long", "short", "unsigned", "signed", "bool", "string", "auto"]),
       builtins: new Set(("cout cin endl std printf scanf puts gets malloc free sizeof strlen strcpy strcmp strcat vector string main NULL true false cerr clog").split(" ")),
     },
+    javascript: {
+      lineComments: ["//"],
+      blockComment: ["/*", "*/"],
+      strings: ['"', "'", "`"],
+      sigil: null,
+      keywords: new Set(("break case catch class const continue debugger default delete do else export extends finally for function if import in instanceof let new return super switch this throw try typeof var void while with yield async await of").split(" ")),
+      types: new Set(["Number", "String", "Boolean", "Array", "Object", "Function", "Promise", "Date", "RegExp", "Map", "Set", "null", "undefined", "NaN", "Infinity"]),
+      builtins: new Set(("console Math JSON document window alert prompt parseFloat parseInt isNaN isFinite Number String Boolean Array Object Date RegExp log info warn error").split(" ")),
+    },
   };
 
   /* ---------- 通用逐行扫描器 ---------- */

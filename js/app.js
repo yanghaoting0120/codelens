@@ -28,7 +28,7 @@
 
   const LANG_FILE = {
     python: "main.py", php: "index.php", html: "index.html",
-    css: "style.css", c: "main.c", cpp: "main.cpp",
+    css: "style.css", c: "main.c", cpp: "main.cpp", javascript: "main.js",
   };
   const LANG_PLACEHOLDER = {
     python: "在这里输入 Python 代码，例如：print(&quot;你好，世界&quot;)",
@@ -37,6 +37,7 @@
     css: "在这里输入 CSS 代码，例如：body { color: red; }",
     c: "在这里输入 C 代码，例如：printf(&quot;你好&quot;);",
     cpp: "在这里输入 C++ 代码，例如：cout &lt;&lt; &quot;你好&quot;;",
+    javascript: "在这里输入 JavaScript 代码，例如：console.log(&quot;你好&quot;);",
   };
 
   const EMPTY_HTML =

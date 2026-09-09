@@ -36,6 +36,7 @@
     php: "PHP 本地解释器运行",
     c: "C 本地解释器运行",
     cpp: "C++ 本地解释器运行",
+    javascript: "JavaScript 在浏览器中真实运行（console.log 输出）",
   };
 
   const MODE_INFO = {
@@ -43,6 +44,7 @@
     php: "在右侧输入 PHP 代码，这里会显示 echo / print 输出的内容。",
     c: "在右侧输入 C 代码，这里会显示 printf 输出的内容。",
     cpp: "在右侧输入 C++ 代码，这里会显示 cout 输出的内容。",
+    javascript: "在右侧输入 JavaScript 代码，这里会显示 console.log 输出的内容。",
   };
 
   function esc(s) {
@@ -58,6 +60,9 @@
       $("previewPanel").classList.toggle("collapsed");
       $("previewToggle").textContent = $("previewPanel").classList.contains("collapsed") ? "▸" : "▾";
     });
+    if (window.InterpJavaScript && window.InterpJavaScript.attach) {
+      window.InterpJavaScript.attach();
+    }
   }
 
   function isWeb() {
@@ -68,9 +73,11 @@
     state.lang = lang;
     $("previewHint").textContent = HINTS[lang] || "";
     const web = isWeb();
+    const js = lang === "javascript";
     $("previewFrame").classList.toggle("hidden", !web);
     $("previewConsole").classList.toggle("hidden", web);
-    $("previewInput").classList.toggle("hidden", web);
+    // JavaScript 无“程序输入”概念，隐藏输入框，仅显示控制台输出
+    $("previewInput").classList.toggle("hidden", web || js);
     if (web) {
       if (state.code.trim()) renderFrame();
     } else {
@@ -85,7 +92,7 @@
     const delay = isWeb() ? 350 : 650;
     state.timer = setTimeout(() => {
       if (isWeb()) renderFrame();
-      else if ($("autoRun").checked) runInterp(code, state.lang);
+      else if ($("autoRun").checked && state.lang !== "javascript") runInterp(code, state.lang);
     }, delay);
   }
 
@@ -146,6 +153,11 @@
       showInfo("在右侧输入代码后，这里会显示运行结果。");
       return;
     }
+    // JavaScript：沙箱 iframe 真实执行，输出异步回传
+    if (lang === "javascript") {
+      runJavaScript(code);
+      return;
+    }
     const input = $("previewInput").value;
     const t0 = Date.now();
     let r = null;
@@ -166,6 +178,38 @@
         $("previewInput").focus();
       }
     }
+  }
+
+  /* ---------- JavaScript 沙箱运行（异步） ---------- */
+  let jsWatchdog = null;
+
+  function runJavaScript(code) {
+    const interp = window.InterpJavaScript;
+    if (!interp) { showInfo("JavaScript 运行器未加载。"); return; }
+    consolePrint("▶ 运行中…", "info");
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(jsWatchdog);
+    };
+    interp.setHandler({
+      onLog: (t) => consolePrint(t, "out"),
+      onWarn: (t) => consolePrint(t, "warn"),
+      onErr: (t) => consolePrint("✗ " + t, "err"),
+      onDone: (ms) => {
+        finish();
+        consolePrint("✓ 运行完成（JavaScript 引擎 · " + ms + " ms）", "info");
+      },
+    });
+    const id = interp.run(code);
+    // 死循环保护：4 秒未返回则销毁 iframe 停止
+    jsWatchdog = setTimeout(() => {
+      if (done) return;
+      done = true;
+      interp.stop();
+      consolePrint("✗ 运行超过 4 秒已自动停止：可能是死循环（循环条件永远成立），请检查 while/for 的条件。", "err");
+    }, 4000);
   }
 
   window.Preview = { init, setLang, onCodeChange, runNow };

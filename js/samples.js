@@ -118,4 +118,28 @@ int main() {
     cout << "总分是：" << sum(scores) << endl;
     return 0;
 }`,
+
+  javascript: `// 一个简单的 JavaScript 示例：统计班级成绩
+// 把成绩放进数组里
+const scores = [85, 92, 78, 90, 88];
+
+// 定义函数：计算平均分
+function average(nums) {
+    let total = 0;
+    for (const score of nums) {
+        total = total + score;   // 累加每一科成绩
+    }
+    return total / nums.length;  // 除以科目数得到平均分
+}
+
+// 调用函数，用 console.log 输出结果
+const avg = average(scores);
+console.log("班级平均分是：" + avg);
+
+// 再加一个判断：分数是否及格
+if (avg >= 60) {
+    console.log("平均分及格了，真棒！");
+} else {
+    console.log("平均分没及格，继续加油。");
+}`,
 };

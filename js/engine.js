@@ -8,6 +8,7 @@
 
   const LANG_NAMES = {
     python: "Python", php: "PHP", html: "HTML", css: "CSS", c: "C 语言", cpp: "C++",
+    javascript: "JavaScript",
   };
 
   const KIND_LABEL = {
@@ -19,7 +20,7 @@
 
   /* ---------- 内置术语词典 ---------- */
   const TERM_DICT = [
-    { keys: ["variable", "var", "$_", "int a"], name: "变量", meaning: "给数据起的“名字”。比如 age = 18，就是把数字 18 存进一个叫 age 的小盒子里，以后叫 age 就能拿到 18。" },
+    { keys: ["variable", "var", "$_", "int a", "let", "const"], name: "变量", meaning: "给数据起的“名字”。比如 age = 18，就是把数字 18 存进一个叫 age 的小盒子里，以后叫 age 就能拿到 18。" },
     { keys: ["function", "def", "func"], name: "函数", meaning: "把一段常用代码打包起来的“工具箱”。给它起个名字，想用时叫一声（调用）就能执行，不用重复写。" },
     { keys: ["loop", "for", "while", "foreach"], name: "循环", meaning: "让同一段代码反复执行的“复读机”。for/while 就是两种常见的循环，例如把列表里的每一项都处理一遍。" },
     { keys: ["if", "else", "elif", "condition", "switch", "case"], name: "条件判断", meaning: "让程序“看情况办事”的岔路口。如果条件成立走这条路，否则走另一条路，就像红绿灯决定走不走。" },
@@ -32,7 +33,7 @@
     { keys: ["parameter", "param", "arg"], name: "参数", meaning: "调用函数时传给它的“原料”。函数根据原料算出结果，比如 计算面积(5, 3) 里的 5 和 3。" },
     { keys: ["return"], name: "返回值", meaning: "函数干完活后交出来的“成品”。比如 加(1,2) 返回 3，这个 3 就是返回值，可以继续被别处使用。" },
     { keys: ["import", "include", "require", "use"], name: "导入 / 引入", meaning: "把别人写好的现成代码（库/头文件）搬进来用，相当于“借工具”，不用自己从头造轮子。" },
-    { keys: ["print", "echo", "cout", "printf"], name: "输出", meaning: "把结果显示出来。print / echo / cout / printf 都是“把话说给你看”的命令，通常显示在屏幕或网页上。" },
+    { keys: ["print", "echo", "cout", "printf", "console.log"], name: "输出", meaning: "把结果显示出来。print / echo / cout / printf / console.log 都是“把话说给你看”的命令，通常显示在屏幕或控制台上。" },
     { keys: ["input", "scanf", "cin", "readline"], name: "输入", meaning: "从用户那里读取数据。程序停下来等你打字或点击，把你的输入存进变量再用。" },
     { keys: ["=", "assignment"], name: "赋值", meaning: "把右边的值装进左边的变量里，用 = 表示。注意它是“装进去”，不是数学里的“等于”。" },
     { keys: ["keyword"], name: "关键字", meaning: "编程语言里自带含义的“保留词”，比如 if、for、return。它们不能拿来当名字用，是语言的规定动作。" },
@@ -199,6 +200,11 @@
       file: "main.cpp",
       intro: "C++ 在 C 的基础上增加了类、对象等特性，是游戏、软件开发的常用语言。",
     },
+    javascript: {
+      name: "JavaScript",
+      file: "main.js",
+      intro: "JavaScript 是浏览器的“行为”语言，能让网页响应点击、处理数据、做计算，也常用来写小工具。",
+    },
   };
 
   /* ---------- 行分类器 ---------- */
@@ -315,6 +321,34 @@
       return { kind: "other", text: t };
     }
 
+    if (lang === "javascript") {
+      if (starts(/^\/\//) || starts(/^\/\*/)) return { kind: "comment", text: t };
+      let m = /^(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/.exec(t);
+      if (m) return { kind: "func", name: m[1] };
+      m = /^(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*[^=]*(?:=>)/.exec(t);
+      if (m) return { kind: "func", name: m[1], arrow: true };
+      m = /^class\s+([A-Za-z_$][\w$]*)/.exec(t);
+      if (m) return { kind: "class", name: m[1] };
+      if (starts(/^import\b/)) return { kind: "import", text: t };
+      if (starts(/^for\b|^while\b|^do\b/)) return { kind: "loop", text: t };
+      if (starts(/^if\b/)) return { kind: "cond", text: t };
+      if (starts(/^else\b/)) return { kind: "cond", text: t };
+      if (starts(/^switch\b/)) return { kind: "cond", text: t };
+      if (starts(/^case\b/)) return { kind: "cond", text: t };
+      if (starts(/^default\b/)) return { kind: "cond", text: t };
+      if (starts(/^return\b/)) return { kind: "return", text: t };
+      if (starts(/^console\.(log|info|warn|error|debug)\s*\(/) || starts(/^alert\s*\(/)) return { kind: "output", text: t };
+      m = /^(?:const|let|var)\s+([A-Za-z_$][\w$]*)/.exec(t);
+      if (m) return { kind: "var", name: m[1], declare: true };
+      m = /^([A-Za-z_$][\w$]*)\s*([+\-*/%]?=)/.exec(t);
+      if (m) return { kind: "var", name: m[1], op: m[2] };
+      m = /^([A-Za-z_$][\w$]*)\s*\(/.exec(t);
+      if (m) return { kind: "call", name: m[1] };
+      if (starts(/^}/)) return { kind: "block", text: t, close: true };
+      if (starts(/^{/)) return { kind: "block", text: t };
+      return { kind: "other", text: t };
+    }
+
     return { kind: "other", text: t };
   }
 
@@ -344,12 +378,14 @@
         if (lang === "php") return "输出语句：echo 会把后面的内容直接打印到网页上，用户能在浏览器里看到。";
         if (lang === "c") return "输出语句：printf 按指定格式把文字/数值打印到控制台窗口。";
         if (lang === "cpp") return "输出语句：cout 配合 << 把内容输出到控制台窗口；endl 表示换行。";
+        if (lang === "javascript") return "输出语句：console.log 把内容打印到控制台，是 JavaScript 最常用的“看结果”的方式；alert 则会弹出提示框。";
         return "输出语句：把括号里的内容打印到屏幕上，是程序“说话”的方式。";
       case "input":
         if (lang === "c") return "输入语句：scanf 等待用户从键盘输入，并按格式存进变量（& 表示“放进这个变量的地址”）。";
         if (lang === "cpp") return "输入语句：cin 配合 >> 等待用户从键盘输入，并存入后面的变量。";
         return "输入语句：程序停下来，等用户输入文字，并把输入的内容作为结果返回（常配合变量一起用）。";
       case "var":
+        if (info.declare && lang === "javascript") return "声明变量：创建了一个名为 " + info.name + " 的变量。let 声明的变量之后可以重新赋值；const 声明的常量一旦赋值就不能再改（改了会报错）。";
         if (info.declare) return "声明变量：创建了一个名为 " + info.name + " 的变量，并声明它存储" + (lang === "cpp" ? "对应的" : "对应的") + "类型数据。以后就用这个名字代表这个数据。";
         return "赋值：把右边的值装进变量 " + info.name + " 里（= 表示“存入”，不是数学上的“等于”）。之后使用 " + info.name + " 就等于使用这个值。";
       case "loop":
@@ -429,6 +465,13 @@
       push(dict("property"));
       if (/flex/.test(code)) push(dict("flex"));
       if (/margin/.test(code)) push(dict("margin"));
+    }
+    if (lang === "javascript") {
+      if (/console\.log|alert/.test(code)) push(dict("print"));
+      if (/\b(function|=>)/.test(code)) push(dict("function"));
+      if (/\[/.test(code)) push(dict("array"));
+      if (/\{\s*["']?[A-Za-z_$][\w$]*["']?\s*:/.test(code)) push(dict("dictionary"));
+      if (/\blet\b|\bconst\b/.test(code)) push(dict("variable"));
     }
     // 由代码文本推断
     if (/["']/.test(code)) push(dict("string"));
@@ -511,6 +554,20 @@
     } else if (lang === "php") {
       title = "一个 PHP 网页后端脚本";
       summary = "这是一段 PHP 代码，运行在服务器上。它可以处理表单数据、读取数据库，并把结果以 HTML 形式输出给浏览器。";
+    } else if (lang === "javascript") {
+      if (has("classes")) {
+        title = "一段用类组织的 JavaScript 代码";
+        summary = "这段代码用 class 把数据和操作打包成“蓝图”，再创建实例使用，是面向对象的写法。";
+      } else if (has("funcs") && has("loops")) {
+        title = "一个典型的数据处理脚本";
+        summary = "它把任务拆成函数，再用循环批量处理数据（如遍历数组计算），是 JavaScript 最常见的小程序结构。";
+      } else if (has("outputs") && !has("funcs") && !has("loops")) {
+        title = "一个入门输出脚本";
+        summary = "这段代码主要用 console.log 把文字或计算结果打印到控制台，是最基础的 JavaScript 入门写法。";
+      } else {
+        title = "一个 JavaScript 程序片段";
+        summary = "这段代码包含若干基础语句" + (feat.length ? "（" + feat.join("、") + "）" : "") + "，是一个小规模的脚本。";
+      }
     } else {
       title = "一段代码";
       summary = "这是一段" + cfg.name + "代码，共 " + stats.lines + " 行。" + (feat.length ? "它" + feat.join("、") + "。" : "");
