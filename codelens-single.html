@@ -193,23 +193,41 @@ body {
 .mini-btn:hover { color: var(--text); background: rgba(255,255,255,.12); }
 
 .lang-picker {
-  display: inline-flex; align-items: center; gap: 8px;
+  position: relative;
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 36px;
+  padding: 0 12px 0 14px;
   background: rgba(255,255,255,.07);
   border: 1px solid rgba(255,255,255,.14);
-  border-radius: 999px; padding: 7px 12px 7px 14px;
+  border-radius: 999px;
   cursor: pointer;
+  color: var(--text);
+  transition: transform .15s ease, background .2s ease, border-color .2s ease, box-shadow .2s ease;
+  white-space: nowrap;
+}
+.lang-picker:hover {
+  background: rgba(255,255,255,.13);
+  border-color: rgba(255,255,255,.24);
+  transform: translateY(-1px);
+}
+.lang-picker:active { transform: translateY(0) scale(.97); }
+.lang-picker:focus-within {
+  border-color: rgba(var(--accent-rgb), .75);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), .18);
 }
 .lang-ico {
-  font-family: var(--font-mono); font-size: 13px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center;
   color: var(--accent);
+  flex: none;
 }
 .lang-picker select {
   font-family: inherit; font-size: 13.5px; font-weight: 600;
   color: var(--text);
   background: transparent; border: none; outline: none; cursor: pointer;
-  appearance: none; -webkit-appearance: none;
-  padding-right: 16px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239aa4c4' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  appearance: none; -webkit-appearance: none; -moz-appearance: none;
+  color-scheme: dark;
+  padding: 6px 18px 6px 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23a3adcc' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 0 center;
 }
 .lang-picker select option { background: #141b3d; color: var(--text); }
@@ -795,7 +813,7 @@ body.resizing iframe, body.resizing .code-input { pointer-events: none; }
   .logo { width: 36px; height: 36px; }
   .top-actions { width: 100%; justify-content: flex-start; gap: 8px; }
   .btn { padding: 7px 12px; font-size: 12.5px; }
-  .lang-picker { padding: 6px 10px; }
+  .lang-picker { height: 32px; padding: 0 9px 0 11px; }
   .lang-picker select { font-size: 12.5px; }
 
   /* 主区域：上下竖排（代码+预览在上，释义在下） */
@@ -864,9 +882,10 @@ body.resizing iframe, body.resizing .code-input { pointer-events: none; }
   <div class="top-actions">
     <label class="lang-picker" title="选择编程语言">
       <span class="lang-ico" aria-hidden="true">
-        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
-          <circle cx="10.5" cy="10.5" r="6"/>
-          <line x1="15.2" y1="15.2" x2="20" y2="20"/>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="8.5"/>
+          <path d="M3.5 12h17"/>
+          <path d="M12 3.5c2.6 2.4 4 5.2 4 8.5s-1.4 6.1-4 8.5c-2.6-2.4-4-5.2-4-8.5s1.4-6.1 4-8.5z"/>
         </svg>
       </span>
       <select id="langSelect">
