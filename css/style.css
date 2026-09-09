@@ -187,7 +187,7 @@ body {
 
 .lang-picker {
   position: relative;
-  display: inline-flex; align-items: center; gap: 7px;
+  display: inline-flex; align-items: center; gap: 8px;
   height: 36px;
   padding: 0 12px 0 14px;
   background: rgba(255,255,255,.07);
@@ -195,6 +195,7 @@ body {
   border-radius: 999px;
   cursor: pointer;
   color: var(--text);
+  user-select: none;
   transition: transform .15s ease, background .2s ease, border-color .2s ease, box-shadow .2s ease;
   white-space: nowrap;
 }
@@ -204,26 +205,70 @@ body {
   transform: translateY(-1px);
 }
 .lang-picker:active { transform: translateY(0) scale(.97); }
-.lang-picker:focus-within {
+.lang-picker:focus-visible,
+.lang-picker.open {
   border-color: rgba(var(--accent-rgb), .75);
   box-shadow: 0 0 0 3px rgba(var(--accent-rgb), .18);
+  outline: none;
 }
 .lang-ico {
   display: inline-flex; align-items: center; justify-content: center;
   color: var(--accent);
   flex: none;
 }
-.lang-picker select {
-  font-family: inherit; font-size: 13.5px; font-weight: 600;
-  color: var(--text);
-  background: transparent; border: none; outline: none; cursor: pointer;
-  appearance: none; -webkit-appearance: none; -moz-appearance: none;
-  color-scheme: dark;
-  padding: 6px 18px 6px 0;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23a3adcc' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right 0 center;
+.lang-value {
+  font-size: 13.5px; font-weight: 600; line-height: 1;
 }
-.lang-picker select option { background: #141b3d; color: var(--text); }
+.lang-arrow {
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--text-dim);
+  transition: transform .2s ease;
+}
+.lang-picker.open .lang-arrow { transform: rotate(180deg); }
+
+/* 自绘语言下拉菜单 */
+.lang-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 172px;
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: var(--radius-md);
+  padding: 6px;
+  box-shadow: 0 18px 44px rgba(2,6,23,.5), 0 0 0 1px rgba(var(--accent-rgb), .05), inset 0 1px 0 rgba(255,255,255,.08);
+  z-index: 60;
+  animation: langMenuIn .14s ease;
+}
+.lang-menu[hidden] { display: none; }
+@keyframes langMenuIn {
+  from { opacity: 0; transform: translateY(-4px) scale(.98); }
+  to { opacity: 1; transform: none; }
+}
+.lang-menu-item {
+  display: flex; align-items: center;
+  width: 100%;
+  padding: 8px 11px;
+  font-family: inherit; font-size: 13px; font-weight: 500;
+  color: var(--text);
+  background: transparent;
+  border: 0; border-radius: 8px;
+  cursor: pointer; text-align: left;
+  transition: background .15s ease, color .15s ease;
+}
+.lang-menu-item:hover { background: rgba(255,255,255,.1); color: #fff; }
+.lang-menu-item.active {
+  background: linear-gradient(135deg, rgba(var(--accent-rgb),.26), rgba(var(--accent2-rgb),.26));
+  color: #fff;
+}
+.lang-menu-item.active::after {
+  content: "✓";
+  margin-left: auto; padding-left: 10px;
+  color: var(--accent); font-weight: 700;
+}
+.lang-menu-item:focus-visible { outline: none; background: rgba(255,255,255,.1); }
 
 /* ---------- 主区域布局 ---------- */
 main {
@@ -807,7 +852,7 @@ body.resizing iframe, body.resizing .code-input { pointer-events: none; }
   .top-actions { width: 100%; justify-content: flex-start; gap: 8px; }
   .btn { padding: 7px 12px; font-size: 12.5px; }
   .lang-picker { height: 32px; padding: 0 9px 0 11px; }
-  .lang-picker select { font-size: 12.5px; }
+  .lang-value { font-size: 12.5px; }
 
   /* 主区域：上下竖排（代码+预览在上，释义在下） */
   main {

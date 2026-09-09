@@ -332,11 +332,19 @@
 
   /* ================= 语言与示例 ================= */
 
+  const LANG_ORDER = ["python", "php", "html", "css", "c", "cpp", "javascript"];
+
+  function setLangDisplay(lang) {
+    const el = $("langValue");
+    if (el) el.textContent = (ENGINE.LANG_NAMES && ENGINE.LANG_NAMES[lang]) || lang;
+  }
+
   function applyLang(lang) {
     state.lang = lang;
     $("fileName").textContent = LANG_FILE[lang];
     $("footLang").textContent = ENGINE.LANG_NAMES[lang];
     $("codeInput").placeholder = LANG_PLACEHOLDER[lang];
+    setLangDisplay(lang);
     window.Preview.setLang(lang);
     if (state.code.trim()) {
       renderEditor();
@@ -607,13 +615,117 @@
     });
   }
 
+  /* ================= 自绘语言选择器 ================= */
+
+  function initLangPicker() {
+    const picker = $("langPicker");
+    const menu = $("langMenu");
+    if (!picker || !menu) return;
+
+    // 生成菜单项（与 LANG_ORDER 一致）
+    menu.innerHTML = "";
+    LANG_ORDER.forEach((lang) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "lang-menu-item";
+      b.setAttribute("role", "option");
+      b.dataset.lang = lang;
+      b.textContent = ENGINE.LANG_NAMES[lang] || lang;
+      b.addEventListener("click", (e) => {
+        e.stopPropagation();
+        selectLang(lang);
+      });
+      menu.appendChild(b);
+    });
+
+    function refreshActive() {
+      const items = menu.querySelectorAll(".lang-menu-item");
+      items.forEach((it) => {
+        const on = it.dataset.lang === state.lang;
+        it.classList.toggle("active", on);
+        if (on) it.setAttribute("aria-selected", "true");
+        else it.removeAttribute("aria-selected");
+      });
+    }
+    function openMenu() {
+      refreshActive();
+      menu.hidden = false;
+      menu.classList.add("open");
+      picker.classList.add("open");
+      picker.setAttribute("aria-expanded", "true");
+      const cur = menu.querySelector(".lang-menu-item.active");
+      if (cur) cur.focus({ preventScroll: true });
+    }
+    function closeMenu() {
+      menu.hidden = true;
+      menu.classList.remove("open");
+      picker.classList.remove("open");
+      picker.setAttribute("aria-expanded", "false");
+    }
+    function selectLang(lang) {
+      applyLang(lang);
+      closeMenu();
+      picker.focus();
+    }
+    function moveFocus(dir) {
+      const items = menu.querySelectorAll(".lang-menu-item");
+      if (!items.length) return;
+      const idx = Array.prototype.indexOf.call(items, document.activeElement);
+      const next = dir === "up"
+        ? (idx <= 0 ? items.length - 1 : idx - 1)
+        : (idx >= items.length - 1 ? 0 : idx + 1);
+      items[next].focus();
+    }
+
+    picker.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (menu.hidden) openMenu();
+      else closeMenu();
+    });
+    picker.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        if (menu.hidden) openMenu();
+        else moveFocus(e.key === "ArrowUp" ? "up" : "down");
+      } else if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        if (menu.hidden) openMenu();
+      } else if (e.key === "Escape") {
+        closeMenu();
+        picker.focus();
+      }
+    });
+    menu.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        moveFocus(e.key === "ArrowUp" ? "up" : "down");
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        closeMenu();
+        picker.focus();
+      } else if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        const el = document.activeElement;
+        if (el && el.dataset && el.dataset.lang) selectLang(el.dataset.lang);
+      } else if (e.key === "Tab") {
+        closeMenu();
+      }
+    });
+    document.addEventListener("click", (e) => {
+      if (!menu.hidden && !picker.contains(e.target) && !menu.contains(e.target)) closeMenu();
+    });
+    window.addEventListener("blur", () => { if (!menu.hidden) closeMenu(); });
+
+    setLangDisplay(state.lang);
+  }
+
   /* ================= 初始化 ================= */
 
   function init() {
     const input = $("codeInput");
 
     // 顶部栏
-    $("langSelect").addEventListener("change", (e) => applyLang(e.target.value));
+    initLangPicker();
     $("btnSample").addEventListener("click", loadSample);
     $("btnExplain").addEventListener("click", () => doExplain({ forceAI: true }));
     $("btnSettings").addEventListener("click", openSettings);
@@ -709,7 +821,7 @@
       if (m && LANG_FILE[m[1].toLowerCase()]) {
         const lang = m[1].toLowerCase();
         applyLang(lang);
-        $("langSelect").value = lang;
+        setLangDisplay(lang);
       }
       // 课程联动：localStorage 里带过来的代码（同域共享，10 分钟内有效）
       const raw = localStorage.getItem("codelens_pending");
@@ -719,7 +831,7 @@
         if (p && p.code && Date.now() - (p.ts || 0) < 10 * 60 * 1000) {
           if (p.lang && LANG_FILE[p.lang]) {
             applyLang(p.lang);
-            $("langSelect").value = p.lang;
+            setLangDisplay(p.lang);
           }
           setCode(p.code);
           toast("已从蛙课堂带入代码，释义与运行结果如下", "ok");

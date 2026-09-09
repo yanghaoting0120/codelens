@@ -194,7 +194,7 @@ body {
 
 .lang-picker {
   position: relative;
-  display: inline-flex; align-items: center; gap: 7px;
+  display: inline-flex; align-items: center; gap: 8px;
   height: 36px;
   padding: 0 12px 0 14px;
   background: rgba(255,255,255,.07);
@@ -202,6 +202,7 @@ body {
   border-radius: 999px;
   cursor: pointer;
   color: var(--text);
+  user-select: none;
   transition: transform .15s ease, background .2s ease, border-color .2s ease, box-shadow .2s ease;
   white-space: nowrap;
 }
@@ -211,26 +212,70 @@ body {
   transform: translateY(-1px);
 }
 .lang-picker:active { transform: translateY(0) scale(.97); }
-.lang-picker:focus-within {
+.lang-picker:focus-visible,
+.lang-picker.open {
   border-color: rgba(var(--accent-rgb), .75);
   box-shadow: 0 0 0 3px rgba(var(--accent-rgb), .18);
+  outline: none;
 }
 .lang-ico {
   display: inline-flex; align-items: center; justify-content: center;
   color: var(--accent);
   flex: none;
 }
-.lang-picker select {
-  font-family: inherit; font-size: 13.5px; font-weight: 600;
-  color: var(--text);
-  background: transparent; border: none; outline: none; cursor: pointer;
-  appearance: none; -webkit-appearance: none; -moz-appearance: none;
-  color-scheme: dark;
-  padding: 6px 18px 6px 0;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23a3adcc' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right 0 center;
+.lang-value {
+  font-size: 13.5px; font-weight: 600; line-height: 1;
 }
-.lang-picker select option { background: #141b3d; color: var(--text); }
+.lang-arrow {
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--text-dim);
+  transition: transform .2s ease;
+}
+.lang-picker.open .lang-arrow { transform: rotate(180deg); }
+
+/* 自绘语言下拉菜单 */
+.lang-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 172px;
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: var(--radius-md);
+  padding: 6px;
+  box-shadow: 0 18px 44px rgba(2,6,23,.5), 0 0 0 1px rgba(var(--accent-rgb), .05), inset 0 1px 0 rgba(255,255,255,.08);
+  z-index: 60;
+  animation: langMenuIn .14s ease;
+}
+.lang-menu[hidden] { display: none; }
+@keyframes langMenuIn {
+  from { opacity: 0; transform: translateY(-4px) scale(.98); }
+  to { opacity: 1; transform: none; }
+}
+.lang-menu-item {
+  display: flex; align-items: center;
+  width: 100%;
+  padding: 8px 11px;
+  font-family: inherit; font-size: 13px; font-weight: 500;
+  color: var(--text);
+  background: transparent;
+  border: 0; border-radius: 8px;
+  cursor: pointer; text-align: left;
+  transition: background .15s ease, color .15s ease;
+}
+.lang-menu-item:hover { background: rgba(255,255,255,.1); color: #fff; }
+.lang-menu-item.active {
+  background: linear-gradient(135deg, rgba(var(--accent-rgb),.26), rgba(var(--accent2-rgb),.26));
+  color: #fff;
+}
+.lang-menu-item.active::after {
+  content: "✓";
+  margin-left: auto; padding-left: 10px;
+  color: var(--accent); font-weight: 700;
+}
+.lang-menu-item:focus-visible { outline: none; background: rgba(255,255,255,.1); }
 
 /* ---------- 主区域布局 ---------- */
 main {
@@ -814,7 +859,7 @@ body.resizing iframe, body.resizing .code-input { pointer-events: none; }
   .top-actions { width: 100%; justify-content: flex-start; gap: 8px; }
   .btn { padding: 7px 12px; font-size: 12.5px; }
   .lang-picker { height: 32px; padding: 0 9px 0 11px; }
-  .lang-picker select { font-size: 12.5px; }
+  .lang-value { font-size: 12.5px; }
 
   /* 主区域：上下竖排（代码+预览在上，释义在下） */
   main {
@@ -880,7 +925,7 @@ body.resizing iframe, body.resizing .code-input { pointer-events: none; }
   </div>
 
   <div class="top-actions">
-    <label class="lang-picker" title="选择编程语言">
+    <div class="lang-picker" id="langPicker" tabindex="0" role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-label="选择编程语言" title="选择编程语言">
       <span class="lang-ico" aria-hidden="true">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="8.5"/>
@@ -888,16 +933,12 @@ body.resizing iframe, body.resizing .code-input { pointer-events: none; }
           <path d="M12 3.5c2.6 2.4 4 5.2 4 8.5s-1.4 6.1-4 8.5c-2.6-2.4-4-5.2-4-8.5s1.4-6.1 4-8.5z"/>
         </svg>
       </span>
-      <select id="langSelect">
-        <option value="python">Python</option>
-        <option value="php">PHP</option>
-        <option value="html">HTML</option>
-        <option value="css">CSS</option>
-        <option value="c">C 语言</option>
-        <option value="cpp">C++</option>
-        <option value="javascript">JavaScript</option>
-      </select>
-    </label>
+      <span class="lang-value" id="langValue">Python</span>
+      <span class="lang-arrow" aria-hidden="true">
+        <svg viewBox="0 0 10 6" width="10" height="6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l4 4 4-4"/></svg>
+      </span>
+    </div>
+    <div class="lang-menu" id="langMenu" role="listbox" aria-label="选择编程语言" hidden></div>
     <button id="btnSample" class="btn ghost" title="载入一段示例代码">示例代码</button>
     <button id="btnExplain" class="btn primary" title="立即解释右侧代码">开始解释</button>
     <button id="btnAI" class="btn ghost ai-toggle" title="AI 增强释义开关（需在设置中配置）">
@@ -6369,11 +6410,19 @@ if (avg >= 60) {
 
   /* ================= 语言与示例 ================= */
 
+  const LANG_ORDER = ["python", "php", "html", "css", "c", "cpp", "javascript"];
+
+  function setLangDisplay(lang) {
+    const el = $("langValue");
+    if (el) el.textContent = (ENGINE.LANG_NAMES && ENGINE.LANG_NAMES[lang]) || lang;
+  }
+
   function applyLang(lang) {
     state.lang = lang;
     $("fileName").textContent = LANG_FILE[lang];
     $("footLang").textContent = ENGINE.LANG_NAMES[lang];
     $("codeInput").placeholder = LANG_PLACEHOLDER[lang];
+    setLangDisplay(lang);
     window.Preview.setLang(lang);
     if (state.code.trim()) {
       renderEditor();
@@ -6644,13 +6693,117 @@ if (avg >= 60) {
     });
   }
 
+  /* ================= 自绘语言选择器 ================= */
+
+  function initLangPicker() {
+    const picker = $("langPicker");
+    const menu = $("langMenu");
+    if (!picker || !menu) return;
+
+    // 生成菜单项（与 LANG_ORDER 一致）
+    menu.innerHTML = "";
+    LANG_ORDER.forEach((lang) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "lang-menu-item";
+      b.setAttribute("role", "option");
+      b.dataset.lang = lang;
+      b.textContent = ENGINE.LANG_NAMES[lang] || lang;
+      b.addEventListener("click", (e) => {
+        e.stopPropagation();
+        selectLang(lang);
+      });
+      menu.appendChild(b);
+    });
+
+    function refreshActive() {
+      const items = menu.querySelectorAll(".lang-menu-item");
+      items.forEach((it) => {
+        const on = it.dataset.lang === state.lang;
+        it.classList.toggle("active", on);
+        if (on) it.setAttribute("aria-selected", "true");
+        else it.removeAttribute("aria-selected");
+      });
+    }
+    function openMenu() {
+      refreshActive();
+      menu.hidden = false;
+      menu.classList.add("open");
+      picker.classList.add("open");
+      picker.setAttribute("aria-expanded", "true");
+      const cur = menu.querySelector(".lang-menu-item.active");
+      if (cur) cur.focus({ preventScroll: true });
+    }
+    function closeMenu() {
+      menu.hidden = true;
+      menu.classList.remove("open");
+      picker.classList.remove("open");
+      picker.setAttribute("aria-expanded", "false");
+    }
+    function selectLang(lang) {
+      applyLang(lang);
+      closeMenu();
+      picker.focus();
+    }
+    function moveFocus(dir) {
+      const items = menu.querySelectorAll(".lang-menu-item");
+      if (!items.length) return;
+      const idx = Array.prototype.indexOf.call(items, document.activeElement);
+      const next = dir === "up"
+        ? (idx <= 0 ? items.length - 1 : idx - 1)
+        : (idx >= items.length - 1 ? 0 : idx + 1);
+      items[next].focus();
+    }
+
+    picker.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (menu.hidden) openMenu();
+      else closeMenu();
+    });
+    picker.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        if (menu.hidden) openMenu();
+        else moveFocus(e.key === "ArrowUp" ? "up" : "down");
+      } else if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        if (menu.hidden) openMenu();
+      } else if (e.key === "Escape") {
+        closeMenu();
+        picker.focus();
+      }
+    });
+    menu.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        moveFocus(e.key === "ArrowUp" ? "up" : "down");
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        closeMenu();
+        picker.focus();
+      } else if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        const el = document.activeElement;
+        if (el && el.dataset && el.dataset.lang) selectLang(el.dataset.lang);
+      } else if (e.key === "Tab") {
+        closeMenu();
+      }
+    });
+    document.addEventListener("click", (e) => {
+      if (!menu.hidden && !picker.contains(e.target) && !menu.contains(e.target)) closeMenu();
+    });
+    window.addEventListener("blur", () => { if (!menu.hidden) closeMenu(); });
+
+    setLangDisplay(state.lang);
+  }
+
   /* ================= 初始化 ================= */
 
   function init() {
     const input = $("codeInput");
 
     // 顶部栏
-    $("langSelect").addEventListener("change", (e) => applyLang(e.target.value));
+    initLangPicker();
     $("btnSample").addEventListener("click", loadSample);
     $("btnExplain").addEventListener("click", () => doExplain({ forceAI: true }));
     $("btnSettings").addEventListener("click", openSettings);
@@ -6746,7 +6899,7 @@ if (avg >= 60) {
       if (m && LANG_FILE[m[1].toLowerCase()]) {
         const lang = m[1].toLowerCase();
         applyLang(lang);
-        $("langSelect").value = lang;
+        setLangDisplay(lang);
       }
       // 课程联动：localStorage 里带过来的代码（同域共享，10 分钟内有效）
       const raw = localStorage.getItem("codelens_pending");
@@ -6756,7 +6909,7 @@ if (avg >= 60) {
         if (p && p.code && Date.now() - (p.ts || 0) < 10 * 60 * 1000) {
           if (p.lang && LANG_FILE[p.lang]) {
             applyLang(p.lang);
-            $("langSelect").value = p.lang;
+            setLangDisplay(p.lang);
           }
           setCode(p.code);
           toast("已从蛙课堂带入代码，释义与运行结果如下", "ok");

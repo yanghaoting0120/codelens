@@ -43,7 +43,7 @@
   </div>
 
   <div class="top-actions">
-    <label class="lang-picker" title="选择编程语言">
+    <div class="lang-picker" id="langPicker" tabindex="0" role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-label="选择编程语言" title="选择编程语言">
       <span class="lang-ico" aria-hidden="true">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="8.5"/>
@@ -51,16 +51,12 @@
           <path d="M12 3.5c2.6 2.4 4 5.2 4 8.5s-1.4 6.1-4 8.5c-2.6-2.4-4-5.2-4-8.5s1.4-6.1 4-8.5z"/>
         </svg>
       </span>
-      <select id="langSelect">
-        <option value="python">Python</option>
-        <option value="php">PHP</option>
-        <option value="html">HTML</option>
-        <option value="css">CSS</option>
-        <option value="c">C 语言</option>
-        <option value="cpp">C++</option>
-        <option value="javascript">JavaScript</option>
-      </select>
-    </label>
+      <span class="lang-value" id="langValue">Python</span>
+      <span class="lang-arrow" aria-hidden="true">
+        <svg viewBox="0 0 10 6" width="10" height="6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l4 4 4-4"/></svg>
+      </span>
+    </div>
+    <div class="lang-menu" id="langMenu" role="listbox" aria-label="选择编程语言" hidden></div>
     <button id="btnSample" class="btn ghost" title="载入一段示例代码">示例代码</button>
     <button id="btnExplain" class="btn primary" title="立即解释右侧代码">开始解释</button>
     <button id="btnAI" class="btn ghost ai-toggle" title="AI 增强释义开关（需在设置中配置）">
