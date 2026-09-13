@@ -2292,14 +2292,19 @@ if (avg >= 60) {
     model: "deepseek-chat",
   };
 
+  // 注意：示例必须是合法 JSON（早期版本用「行号」这类占位符当示例，
+  // 模型会照着写出畸形结构：把 lines/terms 塞进 overview 并漏掉最后的 }）
   const SYSTEM_PROMPT =
     "你是一位极有耐心的编程老师，专门给完全没学过编程的普通人讲解代码。\n" +
     "要求：\n" +
     "1. 用通俗、形象、口语化的中文讲解，避免堆砌术语；必须使用术语时先给大白话解释。\n" +
-    "2. 只输出一个 JSON 对象，不要输出任何其他文字、注释或 Markdown 代码块。\n" +
-    "JSON 格式：\n" +
-    '{"overview":{"title":"一句话标题，说明这段代码是做什么的","summary":"2-4 句话的整体通俗解释"},"lines":[{"no":行号,"explanation":"该行的通俗解释，15-50 字"}],"terms":[{"term":"术语名","meaning":"通俗解释，1-2 句"}]}\n' +
-    "其中 lines 的 no 必须对应输入代码的行号（跳过空行），terms 给出 3-8 个该代码中最值得讲解的术语。";
+    "2. 解释文字里不要夹英文双引号。\n" +
+    "3. 只输出一个 JSON 对象，不要输出任何其他文字、注释或 Markdown 代码块。\n" +
+    "结构固定为 overview / lines / terms 三个平级字段，lines 和 terms 不要放进 overview 里。例如：\n" +
+    '{"overview":{"title":"打印一句问候","summary":"这段代码调用 print，把一句话显示在屏幕上。"},' +
+    '"lines":[{"no":1,"explanation":"调用 print，把括号里的内容显示到屏幕上。"}],' +
+    '"terms":[{"term":"print","meaning":"把内容显示到屏幕上的命令。"}]}\n' +
+    "lines 的 no 是数字，对应输入代码的真实行号（跳过空行）；terms 给出 3-8 个该代码中最值得讲解的术语。";
 
   function loadConfig() {
     try {
@@ -2367,6 +2372,95 @@ if (avg >= 60) {
     return true;
   }
 
+  /* ---------- 容错解析 ----------
+     模型偶尔不守格式（实测约 6 成概率）：把 lines/terms 塞进 overview 里，
+     于是根对象少一个 }，JSON.parse 在末尾报错。这里逐级兜底：
+     严格解析 → 去掉 Markdown 围栏 → 补全缺失的收尾括号 → 正则逐条捞。 */
+
+  function stripFence(s) {
+    const t = String(s).trim()
+      .replace(/^```[a-zA-Z]*\s*/, "")
+      .replace(/\s*```$/, "");
+    const i = t.indexOf("{"), j = t.lastIndexOf("}");
+    return i >= 0 && j > i ? t.slice(i, j + 1) : t;
+  }
+
+  /** 补全缺失的收尾括号（跳过字符串内部的括号） */
+  function balance(s) {
+    const stack = [];
+    let inStr = false, esc = false;
+    for (let k = 0; k < s.length; k++) {
+      const ch = s[k];
+      if (inStr) {
+        if (esc) esc = false;
+        else if (ch === "\\") esc = true;
+        else if (ch === '"') inStr = false;
+      } else if (ch === '"') inStr = true;
+      else if (ch === "{" || ch === "[") stack.push(ch);
+      else if (ch === "}" || ch === "]") stack.pop();
+    }
+    let out = s;
+    if (inStr) out += '"';
+    for (let k = stack.length - 1; k >= 0; k--) out += stack[k] === "{" ? "}" : "]";
+    return out;
+  }
+
+  function tryParse(text) {
+    try { return JSON.parse(text); } catch (e) { return null; }
+  }
+
+  const unesc = (s) => String(s).replace(/\\"/g, '"').replace(/\\n/g, "\n").replace(/\\\\/g, "\\");
+
+  /** 结构归一化：lines / terms 允许出现在顶层或 overview 里面，no 允许是字符串 */
+  function normalize(obj) {
+    const result = { overview: null, lines: [], terms: [] };
+    const ov = obj.overview && typeof obj.overview === "object" ? obj.overview : null;
+    if (ov && (ov.title || ov.summary)) {
+      result.overview = { title: ov.title || "这段代码", summary: ov.summary || "" };
+    }
+    const linesSrc = Array.isArray(obj.lines) ? obj.lines : (ov && Array.isArray(ov.lines) ? ov.lines : []);
+    for (const l of linesSrc) {
+      const no = l && (typeof l.no === "number" ? l.no : parseInt(l.no, 10));
+      if (l && isFinite(no) && l.explanation) {
+        result.lines.push({ no: no, explanation: String(l.explanation) });
+      }
+    }
+    const termsSrc = Array.isArray(obj.terms) ? obj.terms : (ov && Array.isArray(ov.terms) ? ov.terms : []);
+    for (const t of termsSrc) {
+      if (t && t.term && t.meaning) {
+        result.terms.push({ term: String(t.term), meaning: String(t.meaning) });
+      }
+    }
+    return result;
+  }
+
+  /** 最后兜底：结构彻底坏掉时，用正则把能捞到的条目捞出来 */
+  function salvage(raw) {
+    const result = { overview: null, lines: [], terms: [] };
+    let m;
+    const lineRe = /"no"\s*:\s*"?(\d+)"?\s*,\s*"explanation"\s*:\s*"((?:[^"\\]|\\.)*)"/g;
+    while ((m = lineRe.exec(raw))) {
+      result.lines.push({ no: parseInt(m[1], 10), explanation: unesc(m[2]) });
+    }
+    const termRe = /"term"\s*:\s*"((?:[^"\\]|\\.)*)"\s*,\s*"meaning"\s*:\s*"((?:[^"\\]|\\.)*)"/g;
+    while ((m = termRe.exec(raw))) {
+      result.terms.push({ term: unesc(m[1]), meaning: unesc(m[2]) });
+    }
+    const t = raw.match(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+    const s = raw.match(/"summary"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+    if (t || s) {
+      result.overview = { title: t ? unesc(t[1]) : "这段代码", summary: s ? unesc(s[1]) : "" };
+    }
+    return result;
+  }
+
+  function parseReply(content) {
+    const raw = stripFence(content);
+    const obj = tryParse(content) || tryParse(raw) ||
+      tryParse(balance(raw).replace(/,(\s*[}\]])/g, "$1"));
+    return obj ? normalize(obj) : salvage(raw);
+  }
+
   /** AI 解释代码，失败时抛出异常（由调用方降级到离线引擎） */
   async function explain(code, langName) {
     const cfg = loadConfig();
@@ -2390,37 +2484,7 @@ if (avg >= 60) {
       : "";
     if (!content) throw new Error("AI 没有返回内容");
 
-    let parsed;
-    try {
-      parsed = JSON.parse(content);
-    } catch (e) {
-      // 容错：尝试提取第一个 { ... }
-      const m = content.match(/\{[\s\S]*\}/);
-      if (!m) throw new Error("AI 返回的不是有效 JSON");
-      parsed = JSON.parse(m[0]);
-    }
-
-    const result = { overview: null, lines: [], terms: [] };
-    if (parsed.overview) {
-      result.overview = {
-        title: parsed.overview.title || "这段代码",
-        summary: parsed.overview.summary || "",
-      };
-    }
-    if (Array.isArray(parsed.lines)) {
-      for (const l of parsed.lines) {
-        if (l && typeof l.no === "number" && l.explanation) {
-          result.lines.push({ no: l.no, explanation: String(l.explanation) });
-        }
-      }
-    }
-    if (Array.isArray(parsed.terms)) {
-      for (const t of parsed.terms) {
-        if (t && t.term && t.meaning) {
-          result.terms.push({ term: String(t.term), meaning: String(t.meaning) });
-        }
-      }
-    }
+    const result = parseReply(content);
     if (!result.overview && !result.lines.length && !result.terms.length) {
       throw new Error("AI 返回内容不完整");
     }
