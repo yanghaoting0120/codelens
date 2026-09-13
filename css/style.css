@@ -679,6 +679,8 @@ body.resizing iframe, body.resizing .code-input { pointer-events: none; }
 .p-out  { color: #dbe4f7; white-space: pre-wrap; word-break: break-all; }
 .p-info { color: var(--text-faint); font-size: 11.5px; margin-top: 6px; }
 .p-err  { color: #fca5a5; white-space: pre-wrap; word-break: break-all; margin-top: 6px; }
+.p-warn { color: #fcd34d; white-space: pre-wrap; word-break: break-all; }
+.p-pop  { color: #c4b5fd; white-space: pre-wrap; word-break: break-all; }
 
 /* ---------- 弹窗 ---------- */
 .modal-mask {

@@ -36,7 +36,7 @@
     php: "PHP 本地解释器运行",
     c: "C 本地解释器运行",
     cpp: "C++ 本地解释器运行",
-    javascript: "JavaScript 在浏览器中真实运行（console.log 输出）",
+    javascript: "JavaScript 在浏览器中真实运行（console 输出 + alert 弹窗）",
   };
 
   const MODE_INFO = {
@@ -44,7 +44,7 @@
     php: "在右侧输入 PHP 代码，这里会显示 echo / print 输出的内容。",
     c: "在右侧输入 C 代码，这里会显示 printf 输出的内容。",
     cpp: "在右侧输入 C++ 代码，这里会显示 cout 输出的内容。",
-    javascript: "在右侧输入 JavaScript 代码，这里会显示 console.log 输出的内容。",
+    javascript: "在右侧输入 JavaScript 代码，这里会显示 console.log 输出，以及 alert / confirm / prompt 弹窗的内容。",
   };
 
   function esc(s) {
@@ -183,6 +183,11 @@
   /* ---------- JavaScript 沙箱运行（异步） ---------- */
   let jsWatchdog = null;
 
+  // 死循环保护：4 秒未返回则销毁 iframe 停止
+  const JS_TIMEOUT = 4000;
+
+  const POP_NAME = { alert: "弹窗 alert", confirm: "询问 confirm", prompt: "输入 prompt" };
+
   function runJavaScript(code) {
     const interp = window.InterpJavaScript;
     if (!interp) { showInfo("JavaScript 运行器未加载。"); return; }
@@ -193,23 +198,37 @@
       done = true;
       clearTimeout(jsWatchdog);
     };
+    // 弹窗打开时暂停计时，关闭后重新计时（否则等人点确定会被误判成死循环）
+    const armWatchdog = () => {
+      clearTimeout(jsWatchdog);
+      jsWatchdog = setTimeout(() => {
+        if (done) return;
+        done = true;
+        interp.stop();
+        consolePrint("✗ 运行超过 4 秒已自动停止：可能是死循环（循环条件永远成立），请检查 while/for 的条件。", "err");
+      }, JS_TIMEOUT);
+    };
     interp.setHandler({
       onLog: (t) => consolePrint(t, "out"),
       onWarn: (t) => consolePrint(t, "warn"),
       onErr: (t) => consolePrint("✗ " + t, "err"),
+      onModal: (t) => {
+        clearTimeout(jsWatchdog);
+        const i = t.indexOf("|");
+        const kind = t.slice(0, i);
+        consolePrint("🔔 " + (POP_NAME[kind] || "弹窗") + "：" + t.slice(i + 1), "pop");
+      },
+      onModalEnd: (note) => {
+        if (note) consolePrint("　└ 你" + note, "pop");
+        if (!done) armWatchdog();
+      },
       onDone: (ms) => {
         finish();
         consolePrint("✓ 运行完成（JavaScript 引擎 · " + ms + " ms）", "info");
       },
     });
-    const id = interp.run(code);
-    // 死循环保护：4 秒未返回则销毁 iframe 停止
-    jsWatchdog = setTimeout(() => {
-      if (done) return;
-      done = true;
-      interp.stop();
-      consolePrint("✗ 运行超过 4 秒已自动停止：可能是死循环（循环条件永远成立），请检查 while/for 的条件。", "err");
-    }, 4000);
+    interp.run(code);
+    armWatchdog();
   }
 
   window.Preview = { init, setLang, onCodeChange, runNow };

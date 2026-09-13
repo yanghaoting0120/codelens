@@ -6,7 +6,7 @@
 
 ## 支持的语言
 
-Python · PHP · HTML · CSS · C 语言 · C++
+Python · PHP · HTML · CSS · C 语言 · C++ · JavaScript
 
 ## 实时预览（无需任何后端）
 
@@ -15,8 +15,11 @@ Python · PHP · HTML · CSS · C 语言 · C++
 | HTML | 网页画面**实时渲染**（改代码立刻看到页面） |
 | CSS | 样式实时套用在示例页面上展示效果 |
 | Python / PHP / C / C++ | 内置**本地迷你解释器**真实运行，显示 print / echo / printf / cout 的输出 |
+| JavaScript | 沙箱 iframe **真实执行**：console.log 输出 + alert / confirm / prompt **真实弹窗** |
 
 - 代码变化自动运行（可关闭「实时运行」开关），死循环有**步数保护**，不会卡死页面
+- JavaScript 模式只在你点「▶ 运行」时执行；弹窗打开期间会暂停计时，慢慢点确定不会被误判成死循环
+- 运行的弹窗内容会同步记在「运行结果」里（🔔 开头），并回显你点了确定/取消、输入了什么
 - 程序需要输入时（`input()` / `scanf` / `cin`），先在预览栏的「程序输入」框里填好（每行一个），再点 ▶ 运行
 - 运行报错会用**通俗中文**提示，并指出出错行
 - 教学子集说明：本地解释器覆盖常见教学语法；个别高级语法（如导入外部库）会给出中文提示
@@ -67,7 +70,8 @@ codelens/
     ├── interp-common.js  # 迷你解释器公共框架（步数保护/输入/输出）
     ├── interp-python.js  # Python 迷你解释器
     ├── interp-c.js       # C / C++ 迷你解释器
-    ├── interp-php.js     # PHP 迷你解释器
+    ├── interp-php.js      # PHP 迷你解释器
+    ├── interp-javascript.js # JavaScript 运行器（沙箱 iframe，真实执行 + 真实弹窗）
     ├── preview.js        # 实时预览逻辑（iframe 渲染 + 运行控制台）
     └── app.js            # 主逻辑（拖拽分栏、联动、交互）
 ```

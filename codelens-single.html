@@ -686,6 +686,8 @@ body.resizing iframe, body.resizing .code-input { pointer-events: none; }
 .p-out  { color: #dbe4f7; white-space: pre-wrap; word-break: break-all; }
 .p-info { color: var(--text-faint); font-size: 11.5px; margin-top: 6px; }
 .p-err  { color: #fca5a5; white-space: pre-wrap; word-break: break-all; margin-top: 6px; }
+.p-warn { color: #fcd34d; white-space: pre-wrap; word-break: break-all; }
+.p-pop  { color: #c4b5fd; white-space: pre-wrap; word-break: break-all; }
 
 /* ---------- 弹窗 ---------- */
 .modal-mask {
@@ -5786,23 +5788,26 @@ if (avg >= 60) {
    译码 CodeLens · JavaScript 运行器（本地真实执行）
    通过隐藏 iframe（sandbox 隔离）执行用户代码：
    - 捕获 console.log / info / warn / error 输出
+   - 支持 alert / confirm / prompt 真实弹窗（沙箱需 allow-modals，
+     否则浏览器会静默忽略弹窗），弹窗内容同步回传到运行结果里
    - 捕获运行时错误并翻译成通俗中文（尽量带行号）
    - 结果经 postMessage 异步回传，由 preview.js 打印
    - 死循环保护：父页面超时后可调用 stop() 销毁 iframe 停止
+     （弹窗打开期间父页面会暂停计时，避免等人点时被误判成死循环）
    ============================================================ */
 (function () {
   "use strict";
 
   let frame = null;
   let seq = 0;
-  let handler = null; // { id, onLog, onWarn, onErr, onDone }
+  let handler = null; // { id, onLog, onWarn, onErr, onModal, onModalEnd, onDone }
 
   function ensureFrame() {
     if (frame && frame.isConnected) return frame;
     frame = document.createElement("iframe");
     frame.style.display = "none";
     frame.setAttribute("aria-hidden", "true");
-    frame.setAttribute("sandbox", "allow-scripts");
+    frame.setAttribute("sandbox", "allow-scripts allow-modals");
     document.body.appendChild(frame);
     return frame;
   }
@@ -5839,6 +5844,34 @@ if (avg >= 60) {
     try { console.warn = make("warn"); } catch (e) {}
     try { console.error = make("err"); } catch (e) {}
     try { console.debug = make("log"); } catch (e) {}
+
+    /* 弹窗：先通知父页面（父页面据此暂停死循环计时），再调用原生弹窗。
+       注意顺序——必须先 post 再调用，因为 alert 会阻塞子页面。 */
+    const nativeAlert = window.alert;
+    const nativeConfirm = window.confirm;
+    const nativePrompt = window.prompt;
+    window.alert = function (msg) {
+      const text = stringify(msg);
+      post("modal", "alert|" + text);
+      try { nativeAlert.call(window, text); } finally { post("modalEnd", ""); }
+    };
+    window.confirm = function (msg) {
+      const text = stringify(msg);
+      post("modal", "confirm|" + text);
+      let ok = false;
+      try { ok = nativeConfirm.call(window, text); }
+      finally { post("modalEnd", ok ? "点了「确定」" : "点了「取消」"); }
+      return ok;
+    };
+    window.prompt = function (msg, def) {
+      const text = stringify(msg);
+      post("modal", "prompt|" + text);
+      let val = null;
+      try { val = nativePrompt.call(window, text, def === undefined ? "" : def); }
+      finally { post("modalEnd", val === null ? "点了「取消」" : "输入了 " + val); }
+      return val;
+    };
+
     // 从堆栈中找“属于用户代码”的行号（栈里的注入文档行号会偏大，忽略）
     const codeLines = String(code).split("\n").length;
     function locateLine(stack) {
@@ -5904,6 +5937,8 @@ if (avg >= 60) {
     if (d.type === "log") handler.onLog(d.text);
     else if (d.type === "warn") handler.onWarn(d.text);
     else if (d.type === "err") handler.onErr(d.text);
+    else if (d.type === "modal" && handler.onModal) handler.onModal(d.text);
+    else if (d.type === "modalEnd" && handler.onModalEnd) handler.onModalEnd(d.text);
     else if (d.type === "done") handler.onDone(parseInt(d.text, 10) || 0);
   }
 
@@ -5959,7 +5994,7 @@ if (avg >= 60) {
     php: "PHP 本地解释器运行",
     c: "C 本地解释器运行",
     cpp: "C++ 本地解释器运行",
-    javascript: "JavaScript 在浏览器中真实运行（console.log 输出）",
+    javascript: "JavaScript 在浏览器中真实运行（console 输出 + alert 弹窗）",
   };
 
   const MODE_INFO = {
@@ -5967,7 +6002,7 @@ if (avg >= 60) {
     php: "在右侧输入 PHP 代码，这里会显示 echo / print 输出的内容。",
     c: "在右侧输入 C 代码，这里会显示 printf 输出的内容。",
     cpp: "在右侧输入 C++ 代码，这里会显示 cout 输出的内容。",
-    javascript: "在右侧输入 JavaScript 代码，这里会显示 console.log 输出的内容。",
+    javascript: "在右侧输入 JavaScript 代码，这里会显示 console.log 输出，以及 alert / confirm / prompt 弹窗的内容。",
   };
 
   function esc(s) {
@@ -6106,6 +6141,11 @@ if (avg >= 60) {
   /* ---------- JavaScript 沙箱运行（异步） ---------- */
   let jsWatchdog = null;
 
+  // 死循环保护：4 秒未返回则销毁 iframe 停止
+  const JS_TIMEOUT = 4000;
+
+  const POP_NAME = { alert: "弹窗 alert", confirm: "询问 confirm", prompt: "输入 prompt" };
+
   function runJavaScript(code) {
     const interp = window.InterpJavaScript;
     if (!interp) { showInfo("JavaScript 运行器未加载。"); return; }
@@ -6116,23 +6156,37 @@ if (avg >= 60) {
       done = true;
       clearTimeout(jsWatchdog);
     };
+    // 弹窗打开时暂停计时，关闭后重新计时（否则等人点确定会被误判成死循环）
+    const armWatchdog = () => {
+      clearTimeout(jsWatchdog);
+      jsWatchdog = setTimeout(() => {
+        if (done) return;
+        done = true;
+        interp.stop();
+        consolePrint("✗ 运行超过 4 秒已自动停止：可能是死循环（循环条件永远成立），请检查 while/for 的条件。", "err");
+      }, JS_TIMEOUT);
+    };
     interp.setHandler({
       onLog: (t) => consolePrint(t, "out"),
       onWarn: (t) => consolePrint(t, "warn"),
       onErr: (t) => consolePrint("✗ " + t, "err"),
+      onModal: (t) => {
+        clearTimeout(jsWatchdog);
+        const i = t.indexOf("|");
+        const kind = t.slice(0, i);
+        consolePrint("🔔 " + (POP_NAME[kind] || "弹窗") + "：" + t.slice(i + 1), "pop");
+      },
+      onModalEnd: (note) => {
+        if (note) consolePrint("　└ 你" + note, "pop");
+        if (!done) armWatchdog();
+      },
       onDone: (ms) => {
         finish();
         consolePrint("✓ 运行完成（JavaScript 引擎 · " + ms + " ms）", "info");
       },
     });
-    const id = interp.run(code);
-    // 死循环保护：4 秒未返回则销毁 iframe 停止
-    jsWatchdog = setTimeout(() => {
-      if (done) return;
-      done = true;
-      interp.stop();
-      consolePrint("✗ 运行超过 4 秒已自动停止：可能是死循环（循环条件永远成立），请检查 while/for 的条件。", "err");
-    }, 4000);
+    interp.run(code);
+    armWatchdog();
   }
 
   window.Preview = { init, setLang, onCodeChange, runNow };

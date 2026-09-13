@@ -2,23 +2,26 @@
    译码 CodeLens · JavaScript 运行器（本地真实执行）
    通过隐藏 iframe（sandbox 隔离）执行用户代码：
    - 捕获 console.log / info / warn / error 输出
+   - 支持 alert / confirm / prompt 真实弹窗（沙箱需 allow-modals，
+     否则浏览器会静默忽略弹窗），弹窗内容同步回传到运行结果里
    - 捕获运行时错误并翻译成通俗中文（尽量带行号）
    - 结果经 postMessage 异步回传，由 preview.js 打印
    - 死循环保护：父页面超时后可调用 stop() 销毁 iframe 停止
+     （弹窗打开期间父页面会暂停计时，避免等人点时被误判成死循环）
    ============================================================ */
 (function () {
   "use strict";
 
   let frame = null;
   let seq = 0;
-  let handler = null; // { id, onLog, onWarn, onErr, onDone }
+  let handler = null; // { id, onLog, onWarn, onErr, onModal, onModalEnd, onDone }
 
   function ensureFrame() {
     if (frame && frame.isConnected) return frame;
     frame = document.createElement("iframe");
     frame.style.display = "none";
     frame.setAttribute("aria-hidden", "true");
-    frame.setAttribute("sandbox", "allow-scripts");
+    frame.setAttribute("sandbox", "allow-scripts allow-modals");
     document.body.appendChild(frame);
     return frame;
   }
@@ -55,6 +58,34 @@
     try { console.warn = make("warn"); } catch (e) {}
     try { console.error = make("err"); } catch (e) {}
     try { console.debug = make("log"); } catch (e) {}
+
+    /* 弹窗：先通知父页面（父页面据此暂停死循环计时），再调用原生弹窗。
+       注意顺序——必须先 post 再调用，因为 alert 会阻塞子页面。 */
+    const nativeAlert = window.alert;
+    const nativeConfirm = window.confirm;
+    const nativePrompt = window.prompt;
+    window.alert = function (msg) {
+      const text = stringify(msg);
+      post("modal", "alert|" + text);
+      try { nativeAlert.call(window, text); } finally { post("modalEnd", ""); }
+    };
+    window.confirm = function (msg) {
+      const text = stringify(msg);
+      post("modal", "confirm|" + text);
+      let ok = false;
+      try { ok = nativeConfirm.call(window, text); }
+      finally { post("modalEnd", ok ? "点了「确定」" : "点了「取消」"); }
+      return ok;
+    };
+    window.prompt = function (msg, def) {
+      const text = stringify(msg);
+      post("modal", "prompt|" + text);
+      let val = null;
+      try { val = nativePrompt.call(window, text, def === undefined ? "" : def); }
+      finally { post("modalEnd", val === null ? "点了「取消」" : "输入了 " + val); }
+      return val;
+    };
+
     // 从堆栈中找“属于用户代码”的行号（栈里的注入文档行号会偏大，忽略）
     const codeLines = String(code).split("\n").length;
     function locateLine(stack) {
@@ -120,6 +151,8 @@
     if (d.type === "log") handler.onLog(d.text);
     else if (d.type === "warn") handler.onWarn(d.text);
     else if (d.type === "err") handler.onErr(d.text);
+    else if (d.type === "modal" && handler.onModal) handler.onModal(d.text);
+    else if (d.type === "modalEnd" && handler.onModalEnd) handler.onModalEnd(d.text);
     else if (d.type === "done") handler.onDone(parseInt(d.text, 10) || 0);
   }
 
