@@ -222,8 +222,7 @@
 
   /* ================= 解释流程 ================= */
 
-  function doExplain(opts) {
-    opts = opts || {};
+  function doExplain() {
     const code = state.code;
     if (!code.trim()) {
       $("explainBody").innerHTML = EMPTY_HTML;
@@ -237,8 +236,10 @@
     const local = ENGINE.explain(code, state.lang);
     state.result = local;
 
+    // 是否走 AI：只看「AI 增强」开关 + 是否配置好 Key，
+    // 「开始解释」/ Ctrl+Enter 只是立刻重算，不会绕过开关去调 AI
     const aiCfg = AI.loadConfig();
-    const aiWanted = opts.forceAI ? true : (aiCfg.enabled && AI.isConfigured());
+    const aiWanted = aiCfg.enabled && AI.isConfigured();
     if (!aiWanted) {
       renderExplain(local, "local");
       setModeBadge("内置引擎");
@@ -727,7 +728,7 @@
     // 顶部栏
     initLangPicker();
     $("btnSample").addEventListener("click", loadSample);
-    $("btnExplain").addEventListener("click", () => doExplain({ forceAI: true }));
+    $("btnExplain").addEventListener("click", () => doExplain());
     $("btnSettings").addEventListener("click", openSettings);
     $("btnAI").addEventListener("click", () => {
       const cfg = AI.loadConfig();
@@ -750,7 +751,7 @@
     input.addEventListener("keydown", (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
         e.preventDefault();
-        doExplain({ forceAI: true });
+        doExplain();
       } else if (e.key === "Tab") {
         e.preventDefault();
         const start = input.selectionStart, end = input.selectionEnd;
